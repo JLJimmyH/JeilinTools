@@ -1,3 +1,226 @@
-<div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-    <a href="JLViewer.html" style="font-size: 72px;">ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔ ก้้้้้้้้้้้ </a>
-</div>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JL2 Viewer</title>
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+  :root {
+    --bg: #0a0a0f;
+    --card: #12121a;
+    --accent: #00ff88;
+    --accent2: #ff00ff;
+    --accent3: #00d4ff;
+    --border: #2a2a3a;
+  }
+
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Circuit grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .ambient {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+  }
+  .ambient--green {
+    width: 500px; height: 500px;
+    background: rgba(0,255,136,0.08);
+    top: -150px; left: -150px;
+  }
+  .ambient--magenta {
+    width: 400px; height: 400px;
+    background: rgba(255,0,255,0.05);
+    bottom: -100px; right: -100px;
+  }
+  .ambient--cyan {
+    width: 350px; height: 350px;
+    background: rgba(0,212,255,0.05);
+    bottom: -80px; left: 30%;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    padding: 3rem 3.5rem;
+    position: relative;
+    z-index: 1;
+    clip-path: polygon(
+      0 16px, 16px 0,
+      calc(100% - 16px) 0, 100% 16px,
+      100% calc(100% - 16px), calc(100% - 16px) 100%,
+      16px 100%, 0 calc(100% - 16px)
+    );
+    box-shadow:
+      0 0 10px #00ff8840,
+      0 0 30px #00ff8820,
+      inset 0 0 30px rgba(0,255,136,0.03);
+    animation: cardPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes cardPulse {
+    0%, 100% { box-shadow: 0 0 10px #00ff8840, 0 0 30px #00ff8820, inset 0 0 30px rgba(0,255,136,0.03); }
+    50% { box-shadow: 0 0 20px #00ff8860, 0 0 60px #00ff8840, 0 0 100px #00ff8815, inset 0 0 40px rgba(0,255,136,0.05); }
+  }
+
+  .bear-link {
+    display: block;
+    font-size: 5rem;
+    text-decoration: none;
+    line-height: 1.2;
+    color: var(--accent);
+    position: relative;
+    text-shadow:
+      0 0 10px #00ff88,
+      0 0 20px #00ff8880,
+      0 0 40px #00ff8850,
+      0 0 80px #00ff8830;
+    animation: bearGlow 2s ease-in-out infinite, glitchBear 4s infinite;
+  }
+
+  /* Chromatic aberration layers */
+  .bear-link::before,
+  .bear-link::after {
+    content: 'ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔ ก้้้้้้้้้้้';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .bear-link::before {
+    color: var(--accent2);
+    text-shadow: none;
+    opacity: 0.6;
+    animation: rgbShift1 3s infinite linear;
+  }
+  .bear-link::after {
+    color: var(--accent3);
+    text-shadow: none;
+    opacity: 0.6;
+    animation: rgbShift2 3s infinite linear;
+  }
+
+  .bear-link:hover {
+    filter: brightness(1.3);
+    transform: scale(1.08);
+    text-shadow:
+      0 0 15px #00ff88,
+      0 0 30px #00ff88,
+      0 0 60px #00ff8880,
+      0 0 120px #00ff8850,
+      0 0 200px #00ff8830;
+  }
+  .bear-link:active {
+    transform: scale(0.96);
+  }
+
+  @keyframes bearGlow {
+    0%, 100% {
+      text-shadow:
+        0 0 10px #00ff88,
+        0 0 20px #00ff8880,
+        0 0 40px #00ff8850,
+        0 0 80px #00ff8830;
+    }
+    50% {
+      text-shadow:
+        0 0 15px #00ff88,
+        0 0 30px #00ff88,
+        0 0 60px #00ff8880,
+        0 0 100px #00ff8850,
+        0 0 150px #00ff8820;
+    }
+  }
+
+  @keyframes rgbShift1 {
+    0%, 100% { clip-path: inset(0 0 95% 0); transform: translate(0); }
+    5%  { clip-path: inset(15% 0 60% 0); transform: translate(-4px, 2px); }
+    10% { clip-path: inset(0 0 95% 0); transform: translate(0); }
+    20% { clip-path: inset(50% 0 20% 0); transform: translate(-3px, -1px); }
+    22% { clip-path: inset(0 0 95% 0); transform: translate(0); }
+    45% { clip-path: inset(30% 0 40% 0); transform: translate(-5px, 3px); }
+    47% { clip-path: inset(0 0 95% 0); transform: translate(0); }
+    70% { clip-path: inset(70% 0 5% 0); transform: translate(-3px, -2px); }
+    72% { clip-path: inset(0 0 95% 0); transform: translate(0); }
+  }
+
+  @keyframes rgbShift2 {
+    0%, 100% { clip-path: inset(95% 0 0 0); transform: translate(0); }
+    8%  { clip-path: inset(60% 0 15% 0); transform: translate(4px, -2px); }
+    12% { clip-path: inset(95% 0 0 0); transform: translate(0); }
+    30% { clip-path: inset(10% 0 70% 0); transform: translate(3px, 1px); }
+    33% { clip-path: inset(95% 0 0 0); transform: translate(0); }
+    55% { clip-path: inset(40% 0 30% 0); transform: translate(5px, -3px); }
+    58% { clip-path: inset(95% 0 0 0); transform: translate(0); }
+    80% { clip-path: inset(5% 0 70% 0); transform: translate(3px, 2px); }
+    83% { clip-path: inset(95% 0 0 0); transform: translate(0); }
+  }
+
+  @keyframes glitchBear {
+    0%, 100% { transform: translate(0); }
+    2%  { transform: translate(-3px, 2px) skewX(-2deg); }
+    4%  { transform: translate(3px, -1px) skewX(1deg); }
+    6%  { transform: translate(0); }
+    50% { transform: translate(0); }
+    52% { transform: translate(2px, -3px) skewX(3deg); }
+    53% { transform: translate(-4px, 1px) skewX(-1deg); }
+    55% { transform: translate(0); }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .bear-link,
+    .bear-link::before,
+    .bear-link::after,
+    .card { animation: none; }
+    .bear-link { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="ambient ambient--green"></div>
+  <div class="ambient ambient--magenta"></div>
+  <div class="ambient ambient--cyan"></div>
+  <div class="card">
+    <a href="JLViewer.html" class="bear-link">ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔ ก้้้้้้้้้้้</a>
+  </div>
+</body>
+</html>
