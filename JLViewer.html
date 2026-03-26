@@ -409,7 +409,7 @@
     <div class="placeholder">
       <div class="icon">&#x1F4F7;</div>
       <p>拖曳檔案到此處</p>
-      <div class="hint">支援 JR2 / ARGB / JL / YUV / RAW / PNG 格式</div>
+      <div class="hint">支援 JR2 / ARGB / JL / YUV (nv12/nv21/i420/422/444…) / RAW / PNG</div>
     </div>
     <div id="canvas-wrap">
       <canvas id="canvas"></canvas>
@@ -418,7 +418,7 @@
 </div>
 
 <div id="pixel-info"></div>
-<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.yuv,.YUV,.raw,.RAW">
+<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW">
 
 <script>
 (() => {
@@ -474,6 +474,15 @@
   //  FILE LOADING
   // ══════════════════════════════════════════════════════════════
 
+  const YUV_EXTENSIONS = [
+    '.yuv', '.nv12', '.nv21', '.i420', '.yv12',
+    '.422', '.yuyv', '.uyvy', '.yuy2',
+    '.444', '.y'
+  ];
+  function isYUVExtension(name) {
+    return YUV_EXTENSIONS.some(e => name.endsWith(e));
+  }
+
   function handleFile(file) {
     if (!file) return;
     fileName = file.name;
@@ -491,7 +500,7 @@
       if (ext.endsWith('.jr2')) {
         currentFormat = 'jr2';
         parseJR2(buf);
-      } else if (ext.endsWith('.yuv')) {
+      } else if (isYUVExtension(ext)) {
         currentFormat = 'yuv';
         yuvRawArrayBuffer = e.target.result;
         parseYUV(e.target.result);
@@ -911,11 +920,13 @@
     const rgba = new Uint8ClampedArray(w * h * 4);
 
     // Helper: clamp YUV→RGB (BT.601)
-    // uvSigned: UV 值為 signed (-128~127)，不需再減 128
+    // uvSigned: UV 以 signed 儲存，需先 XOR 0x80 轉為 unsigned (參考 jl_tools.cpp)
+    function fixUV(val) {
+      return uvSigned ? (val ^ 0x80) : val;
+    }
     function yuvToRgb(y, u, v) {
-      const c = y - 16;
-      const d = uvSigned ? u : u - 128;
-      const e = uvSigned ? v : v - 128;
+      u = fixUV(u); v = fixUV(v);
+      const c = y - 16, d = u - 128, e = v - 128;
       return [
         Math.max(0, Math.min(255, (298*c + 409*e + 128) >> 8)),
         Math.max(0, Math.min(255, (298*c - 100*d - 208*e + 128) >> 8)),
