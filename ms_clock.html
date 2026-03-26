@@ -47,7 +47,7 @@
             background: var(--bg);
             color: var(--text);
             font-family: 'JetBrains Mono', 'Consolas', monospace;
-            min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -766,6 +766,32 @@
 
             button {
                 padding: 10px 24px;
+                font-size: var(--font-base);
+            }
+
+            input[type="range"] {
+                width: 140px;
+            }
+
+            input[type="number"] {
+                width: 70px;
+            }
+
+            .interval-control {
+                gap: 10px;
+            }
+
+            .keyboard-hints {
+                display: none;
+            }
+
+            .hud-corner.top-left,
+            .hud-corner.top-right {
+                top: 10px;
+            }
+            .hud-corner.bottom-left,
+            .hud-corner.bottom-right {
+                bottom: 10px;
             }
         }
 

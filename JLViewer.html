@@ -465,6 +465,22 @@
     box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
     line-height: 1.7; white-space: pre;
   }
+
+  /* ── Mobile ──────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    body { height: 100dvh; }
+    .toolbar { padding: 6px 10px; gap: 8px; flex-wrap: wrap; min-height: 40px; }
+    .toolbar h1 { font-size: 14px; }
+    .toolbar .info { font-size: 11px; max-width: 40vw; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 20; width: 220px; transform: translateX(0); }
+    .sidebar.collapsed { transform: translateX(-220px); width: 220px; border-right: none; }
+    .sidebar-toggle { right: -28px; width: 28px; height: 48px; font-size: 14px; }
+    .sidebar.collapsed .sidebar-toggle { right: -28px; }
+    .main-area { width: 100%; }
+    .ctrl-select, .ctrl-btn { padding: 8px 14px; min-height: 36px; }
+    .ctrl-input { padding: 6px 10px; }
+    #pixel-info { bottom: 4px; left: 4px; font-size: 11px; padding: 4px 8px; }
+  }
 </style>
 </head>
 <body>
@@ -1884,6 +1900,11 @@
     sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C0';
     setTimeout(fitToWindow, 320);
   });
+  // 手機版預設收合側邊欄
+  if (window.innerWidth <= 768) {
+    sidebar.classList.add('collapsed');
+    sidebarToggle.textContent = '\u25B6';
+  }
 
   // ── Theme Toggle ────────────────────────────────────────────
 

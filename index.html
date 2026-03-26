@@ -169,6 +169,21 @@
     55% { transform: translate(0); }
   }
 
+  /* ── Mobile ──────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    body { overflow: auto; min-height: 100dvh; }
+    .card { padding: 1.5rem 1rem; }
+    .nav-links {
+      flex-direction: column;
+      gap: 2rem;
+    }
+    .tool-link { font-size: 2.5rem; }
+    .tool-label { font-size: 0.65rem; }
+    .ambient--green  { width: 250px; height: 250px; }
+    .ambient--magenta { width: 200px; height: 200px; }
+    .ambient--cyan    { width: 180px; height: 180px; }
+  }
+
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     .bear-link,
