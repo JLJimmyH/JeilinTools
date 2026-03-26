@@ -289,6 +289,12 @@
     color: var(--fg-muted); pointer-events: none; display: none; z-index: 10;
     box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
     transition: background var(--duration) var(--ease-out), border-color var(--duration) var(--ease-out);
+    align-items: center; gap: 8px;
+  }
+  #pixel-info.visible { display: flex; }
+  #pixel-swatch {
+    width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0;
+    border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(128,128,128,0.2);
   }
 
   #file-input { display: none; }
@@ -376,7 +382,20 @@
   }
   .compare-load-panel.has-image {
     border-style: solid; border-color: var(--accent); cursor: default;
-    background: transparent; margin: 0; border: none; border-radius: 0;
+    background: transparent; border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .compare-load-panel .cmp-preview-wrap {
+    position: relative; width: 100%; height: 100%; display: flex;
+    align-items: center; justify-content: center; overflow: hidden;
+  }
+  .compare-load-panel .cmp-preview-wrap canvas {
+    image-rendering: pixelated; max-width: 100%; max-height: 100%; object-fit: contain;
+  }
+  .compare-load-panel .cmp-preview-label {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    background: var(--bg-tooltip); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    font-size: 12px; color: var(--fg-muted); white-space: nowrap; pointer-events: none;
   }
   .compare-load-panel:hover:not(.has-image), .compare-load-panel.dragover {
     border-color: var(--accent);
@@ -538,7 +557,6 @@
             <option value="10">10 bit</option>
           </select></div>
           <div class="panel-row"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--fg-muted)"><input type="checkbox" id="yuv-uv-signed"> UV Signed</label></div>
-          <button class="ctrl-btn" id="btn-yuv-apply">套用</button>
         </div>
       </div>
 
@@ -554,7 +572,6 @@
             <option value="RGB888">RGB888</option>
             <option value="JR2">JR2 (灰階)</option>
           </select></div>
-          <button class="ctrl-btn" id="btn-raw-apply">套用</button>
         </div>
       </div>
 
@@ -574,7 +591,7 @@
   </div>
 </div>
 
-<div id="pixel-info"></div>
+<div id="pixel-info"><div id="pixel-swatch"></div><span id="pixel-text"></span></div>
 
 <!-- ── Compare Mode Overlay ──────────────────────────────────── -->
 <div id="compare-overlay">
@@ -655,7 +672,6 @@
               <option value="8" selected>8 bit</option><option value="10">10 bit</option>
             </select></div>
             <div class="panel-row"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--fg-muted)"><input type="checkbox" id="cmp-yuv-uv-signed"> UV Signed</label></div>
-            <button class="ctrl-btn" id="cmp-btn-yuv-apply">套用</button>
           </div>
         </div>
         <div class="panel-section" id="cmp-section-raw" style="display:none">
@@ -667,7 +683,6 @@
               <option value="RGB565">RGB565</option><option value="RGB888">RGB888</option>
               <option value="JR2">JR2 (灰階)</option>
             </select></div>
-            <button class="ctrl-btn" id="cmp-btn-raw-apply">套用</button>
           </div>
         </div>
         <div class="panel-section" id="cmp-section-background" style="display:none">
@@ -1756,25 +1771,36 @@
       const rect = canvas.getBoundingClientRect();
       const cx = Math.floor((e.clientX - rect.left) / (rect.width / canvas.width));
       const cy = Math.floor((e.clientY - rect.top) / (rect.height / canvas.height));
+      const pixelSwatch = document.getElementById('pixel-swatch');
+      const pixelText = document.getElementById('pixel-text');
       if (cx >= 0 && cy >= 0 && cx < canvas.width && cy < canvas.height) {
-        pixelInfo.style.display = 'block';
+        pixelInfo.classList.add('visible');
         if (currentFormat === 'jr2') {
           const mode = modeSelect.value;
           const useBinning = mode === 'binning' || mode === 'binning-stretch';
-          let rawVal;
+          let rawVal, grayVal;
           if (useBinning) {
             const sx = cx * 2, sy = cy * 2, idx = sy * imgWidth + sx;
             rawVal = `(${rawData[idx]},${rawData[idx+1]},${rawData[idx+imgWidth]},${rawData[idx+imgWidth+1]})`;
+            grayVal = Math.round((rawData[idx] + rawData[idx+1] + rawData[idx+imgWidth] + rawData[idx+imgWidth+1]) / 4);
           } else {
-            rawVal = rawData[cy * imgWidth + cx];
+            grayVal = rawData[cy * imgWidth + cx];
+            rawVal = grayVal;
           }
-          pixelInfo.textContent = `X:${cx} Y:${cy} | Raw: ${rawVal}`;
+          pixelText.textContent = `X:${cx} Y:${cy} | Raw: ${rawVal}`;
+          pixelSwatch.style.background = `rgb(${grayVal},${grayVal},${grayVal})`;
         } else if (argbImageData && (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw')) {
           const idx = (cy * argbWidth + cx) * 4;
-          pixelInfo.textContent = `X:${cx} Y:${cy} | R:${argbImageData[idx]} G:${argbImageData[idx+1]} B:${argbImageData[idx+2]} A:${argbImageData[idx+3]}`;
+          const r = argbImageData[idx], g = argbImageData[idx+1], b = argbImageData[idx+2], a = argbImageData[idx+3];
+          if (r === g && g === b) {
+            pixelText.textContent = `X:${cx} Y:${cy} | Gray:${r} A:${a}`;
+          } else {
+            pixelText.textContent = `X:${cx} Y:${cy} | R:${r} G:${g} B:${b} A:${a}`;
+          }
+          pixelSwatch.style.background = `rgb(${r},${g},${b})`;
         }
       } else {
-        pixelInfo.style.display = 'none';
+        pixelInfo.classList.remove('visible');
       }
     }
   });
@@ -1830,13 +1856,16 @@
     if (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw') renderARGB();
   });
 
-  // YUV controls
-  document.getElementById('btn-yuv-apply').addEventListener('click', () => {
+  // YUV controls — auto-apply on change
+  function yuvAutoApply() {
     if (currentFormat === 'yuv' && yuvRawArrayBuffer) { parseYUV(yuvRawArrayBuffer); updateUIForFormat(); fitToWindow(); }
-  });
+  }
+  yuvFormatSelect.addEventListener('change', yuvAutoApply);
+  yuvBitdepthSelect.addEventListener('change', yuvAutoApply);
+  yuvUvSignedCheckbox.addEventListener('change', yuvAutoApply);
 
-  // RAW controls
-  document.getElementById('btn-raw-apply').addEventListener('click', () => {
+  // RAW controls — auto-apply on change
+  rawPixfmtSelect.addEventListener('change', () => {
     if (currentFormat === 'raw' && yuvRawArrayBuffer) { parseRAW(yuvRawArrayBuffer); updateUIForFormat(); fitToWindow(); }
   });
 
@@ -2650,8 +2679,8 @@
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
   });
 
-  // YUV apply
-  document.getElementById('cmp-btn-yuv-apply').addEventListener('click', () => {
+  // YUV auto-apply on change
+  function cmpYuvAutoApply() {
     const p = cmpGetCurrentSideParams(); if (!p) return;
     p.yuvFormat = cmpYuvFormatSelect.value;
     p.yuvBitDepth = parseInt(cmpYuvBitdepthSelect.value);
@@ -2660,10 +2689,13 @@
     p.height = parseInt(cmpInputHeight.value) || null;
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
     cmpFitToWindow();
-  });
+  }
+  cmpYuvFormatSelect.addEventListener('change', cmpYuvAutoApply);
+  cmpYuvBitdepthSelect.addEventListener('change', cmpYuvAutoApply);
+  cmpYuvUvSignedCheckbox.addEventListener('change', cmpYuvAutoApply);
 
-  // RAW apply
-  document.getElementById('cmp-btn-raw-apply').addEventListener('click', () => {
+  // RAW auto-apply on change
+  cmpRawPixfmtSelect.addEventListener('change', () => {
     const p = cmpGetCurrentSideParams(); if (!p) return;
     p.rawPixelFormat = cmpRawPixfmtSelect.value;
     p.width = parseInt(cmpInputWidth.value) || null;
@@ -2672,15 +2704,18 @@
     cmpFitToWindow();
   });
 
-  // Background
+  // Background — re-render all affected canvases
   cmpBgStyleSelect.addEventListener('change', () => {
     const p = cmpGetCurrentSideParams(); if (!p) return;
     p.bgStyle = cmpBgStyleSelect.value;
     const img = cmpGetActiveImg();
     if (img) {
-      const cvs = cmpActiveTab === 'a' ? cmpCanvasA : cmpCanvasB;
-      const cctx = cmpActiveTab === 'a' ? cmpCtxA : cmpCtxB;
-      cmpRenderCanvas(cvs, cctx, img);
+      img.params.bgStyle = cmpBgStyleSelect.value;
+      cmpRenderCanvas(cmpActiveTab === 'a' ? cmpCanvasA : cmpCanvasB,
+                      cmpActiveTab === 'a' ? cmpCtxA : cmpCtxB, img);
+      cmpRenderCanvas(cmpActiveTab === 'a' ? cmpDualCanvasA : cmpDualCanvasB,
+                      cmpActiveTab === 'a' ? cmpDualCtxA : cmpDualCtxB, img);
+      if (cmpViewMode === 'diff') cmpRenderDiff();
     }
   });
 
@@ -2702,6 +2737,21 @@
 
   // ── Drop panel events ───────────────────────────────────────
 
+  function cmpShowPreview(panel, img) {
+    panel.classList.add('has-image');
+    const cvs = document.createElement('canvas');
+    cmpRenderCanvas(cvs, cvs.getContext('2d'), img);
+    panel.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'cmp-preview-wrap';
+    wrap.appendChild(cvs);
+    const label = document.createElement('div');
+    label.className = 'cmp-preview-label';
+    label.textContent = `${img.name}  ${img.width}×${img.height}`;
+    wrap.appendChild(label);
+    panel.appendChild(wrap);
+  }
+
   async function cmpLoadFile(file, side) {
     try {
       const defaultP = cmpDefaultParams();
@@ -2715,16 +2765,10 @@
 
       if (side === 'a') {
         cmpImgA = img;
-        if (!cmpView.classList.contains('active')) {
-          cmpDropA.classList.add('has-image');
-          cmpDropA.innerHTML = `<div style="text-align:center;pointer-events:none;"><p style="font-size:14px;color:var(--fg-muted);font-weight:500;">&#x2713; ${img.name}</p><p style="font-size:12px;color:var(--fg-dim);margin-top:4px;">${img.width}×${img.height}</p></div>`;
-        }
+        if (!cmpView.classList.contains('active')) cmpShowPreview(cmpDropA, img);
       } else {
         cmpImgB = img;
-        if (!cmpView.classList.contains('active')) {
-          cmpDropB.classList.add('has-image');
-          cmpDropB.innerHTML = `<div style="text-align:center;pointer-events:none;"><p style="font-size:14px;color:var(--fg-muted);font-weight:500;">&#x2713; ${img.name}</p><p style="font-size:12px;color:var(--fg-dim);margin-top:4px;">${img.width}×${img.height}</p></div>`;
-        }
+        if (!cmpView.classList.contains('active')) cmpShowPreview(cmpDropB, img);
       }
 
       if (cmpImgA && cmpImgB) {
