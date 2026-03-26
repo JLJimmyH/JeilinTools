@@ -362,6 +362,45 @@
         </div>
       </div>
 
+      <div class="panel-section" id="section-yuv" style="display:none">
+        <div class="panel-title">YUV 參數</div>
+        <div class="panel-body">
+          <div class="panel-row"><span class="label-text">格式</span><select class="ctrl-select" id="yuv-format">
+            <option value="NV12">NV12</option>
+            <option value="NV21">NV21</option>
+            <option value="I420">I420 (YUV420P)</option>
+            <option value="YV12">YV12</option>
+            <option value="YUV422P">YUV422P</option>
+            <option value="YUYV">YUYV (YUY2)</option>
+            <option value="UYVY">UYVY</option>
+            <option value="YUV444P">YUV444P</option>
+            <option value="Y_ONLY">Y Only (灰階)</option>
+          </select></div>
+          <div class="panel-row"><span class="label-text">位元深度</span><select class="ctrl-select" id="yuv-bitdepth">
+            <option value="8" selected>8 bit</option>
+            <option value="10">10 bit</option>
+          </select></div>
+          <div class="panel-row"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--fg-muted)"><input type="checkbox" id="yuv-uv-signed"> UV Signed</label></div>
+          <button class="ctrl-btn" id="btn-yuv-apply">套用</button>
+        </div>
+      </div>
+
+      <div class="panel-section" id="section-raw" style="display:none">
+        <div class="panel-title">RAW 像素格式</div>
+        <div class="panel-body">
+          <div class="panel-row"><span class="label-text">格式</span><select class="ctrl-select" id="raw-pixfmt">
+            <option value="ARGB8888">ARGB8888</option>
+            <option value="ARGB4444">ARGB4444</option>
+            <option value="ARGB2222">ARGB2222</option>
+            <option value="ARGB1555">ARGB1555</option>
+            <option value="RGB565">RGB565</option>
+            <option value="RGB888">RGB888</option>
+            <option value="JR2">JR2 (灰階)</option>
+          </select></div>
+          <button class="ctrl-btn" id="btn-raw-apply">套用</button>
+        </div>
+      </div>
+
     </div>
     <button class="sidebar-toggle" id="sidebar-toggle" title="收合/展開面板">&#x25C0;</button>
   </aside>
@@ -370,7 +409,7 @@
     <div class="placeholder">
       <div class="icon">&#x1F4F7;</div>
       <p>拖曳檔案到此處</p>
-      <div class="hint">支援 JR2 / ARGB / JL / PNG 格式</div>
+      <div class="hint">支援 JR2 / ARGB / JL / YUV / RAW / PNG 格式</div>
     </div>
     <div id="canvas-wrap">
       <canvas id="canvas"></canvas>
@@ -379,7 +418,7 @@
 </div>
 
 <div id="pixel-info"></div>
-<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG">
+<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.yuv,.YUV,.raw,.RAW">
 
 <script>
 (() => {
@@ -404,7 +443,7 @@
   const bgStyleSelect = document.getElementById('bg-style');
 
   // ── State ─────────────────────────────────────────────────────
-  let currentFormat = null; // 'jr2' | 'argb' | 'png'
+  let currentFormat = null; // 'jr2' | 'argb' | 'png' | 'yuv' | 'raw'
   let fileName = '';
 
   // JR2 state
@@ -418,6 +457,13 @@
   let argbResult = null;
   let argbArrayBuffer = null; // keep for re-parse
   let isManuallyEdited = false;
+
+  // YUV/RAW state
+  let yuvRawArrayBuffer = null;
+  const yuvFormatSelect = document.getElementById('yuv-format');
+  const yuvBitdepthSelect = document.getElementById('yuv-bitdepth');
+  const yuvUvSignedCheckbox = document.getElementById('yuv-uv-signed');
+  const rawPixfmtSelect = document.getElementById('raw-pixfmt');
 
   // Pan/zoom state
   let scale = 1, panX = 0, panY = 0;
@@ -445,6 +491,14 @@
       if (ext.endsWith('.jr2')) {
         currentFormat = 'jr2';
         parseJR2(buf);
+      } else if (ext.endsWith('.yuv')) {
+        currentFormat = 'yuv';
+        yuvRawArrayBuffer = e.target.result;
+        parseYUV(e.target.result);
+      } else if (ext.endsWith('.raw')) {
+        currentFormat = 'raw';
+        yuvRawArrayBuffer = e.target.result;
+        parseRAW(e.target.result);
       } else {
         currentFormat = 'argb';
         argbArrayBuffer = e.target.result;
@@ -834,6 +888,243 @@
     return { imageData: rgba, width, height, source: 'manual', formatInfo: { format } };
   }
 
+  // ══════════════════════════════════════════════════════════════
+  //  YUV FORMAT PARSING
+  // ══════════════════════════════════════════════════════════════
+
+  function parseYUV(arrayBuffer) {
+    let w, h, source;
+    if (isManuallyEdited && inputWidth.value && inputHeight.value) {
+      w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '手動輸入';
+    } else {
+      const dims = getDimensionsFromFileName(fileName);
+      if (dims) { w = dims.width; h = dims.height; source = '檔名'; }
+      else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
+      else { w = 128; h = 128; source = '預設'; }
+      inputWidth.value = w; inputHeight.value = h;
+    }
+
+    const fmt = yuvFormatSelect.value;
+    const bitDepth = parseInt(yuvBitdepthSelect.value);
+    const uvSigned = yuvUvSignedCheckbox.checked;
+    const src = new Uint8Array(arrayBuffer);
+    const rgba = new Uint8ClampedArray(w * h * 4);
+
+    // Helper: clamp YUV→RGB (BT.601)
+    // uvSigned: UV 值為 signed (-128~127)，不需再減 128
+    function yuvToRgb(y, u, v) {
+      const c = y - 16;
+      const d = uvSigned ? u : u - 128;
+      const e = uvSigned ? v : v - 128;
+      return [
+        Math.max(0, Math.min(255, (298*c + 409*e + 128) >> 8)),
+        Math.max(0, Math.min(255, (298*c - 100*d - 208*e + 128) >> 8)),
+        Math.max(0, Math.min(255, (298*c + 516*d + 128) >> 8))
+      ];
+    }
+
+    // For 10-bit: read 2 bytes LE, shift to 8-bit
+    function getSample(data, offset) {
+      if (bitDepth === 10) {
+        if (offset + 1 >= data.length) return 0;
+        return ((data[offset] | (data[offset+1] << 8)) >> 2) & 0xFF;
+      }
+      return offset < data.length ? data[offset] : 0;
+    }
+    const bps = bitDepth === 10 ? 2 : 1; // bytes per sample
+
+    if (fmt === 'Y_ONLY') {
+      for (let i = 0; i < w * h; i++) {
+        const y = getSample(src, i * bps);
+        rgba[i*4] = y; rgba[i*4+1] = y; rgba[i*4+2] = y; rgba[i*4+3] = 255;
+      }
+    } else if (fmt === 'NV12' || fmt === 'NV21') {
+      const yPlane = 0;
+      const uvPlane = w * h * bps;
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+          const y = getSample(src, yPlane + (row * w + col) * bps);
+          const uvRow = Math.floor(row / 2), uvCol = Math.floor(col / 2);
+          const uvOff = uvPlane + (uvRow * w + uvCol * 2) * bps;
+          let u, v;
+          if (fmt === 'NV12') { u = getSample(src, uvOff); v = getSample(src, uvOff + bps); }
+          else { v = getSample(src, uvOff); u = getSample(src, uvOff + bps); }
+          const [r, g, b] = yuvToRgb(y, u, v);
+          const idx = (row * w + col) * 4;
+          rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+        }
+      }
+    } else if (fmt === 'I420' || fmt === 'YV12') {
+      const yPlane = 0;
+      const plane1 = w * h * bps;
+      const plane2 = plane1 + Math.floor(w/2) * Math.floor(h/2) * bps;
+      const uPlane = fmt === 'I420' ? plane1 : plane2;
+      const vPlane = fmt === 'I420' ? plane2 : plane1;
+      const uvW = Math.floor(w / 2);
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+          const y = getSample(src, yPlane + (row * w + col) * bps);
+          const uvRow = Math.floor(row / 2), uvCol = Math.floor(col / 2);
+          const u = getSample(src, uPlane + (uvRow * uvW + uvCol) * bps);
+          const v = getSample(src, vPlane + (uvRow * uvW + uvCol) * bps);
+          const [r, g, b] = yuvToRgb(y, u, v);
+          const idx = (row * w + col) * 4;
+          rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+        }
+      }
+    } else if (fmt === 'YUV422P') {
+      const yPlane = 0;
+      const uPlane = w * h * bps;
+      const vPlane = uPlane + Math.floor(w/2) * h * bps;
+      const uvW = Math.floor(w / 2);
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+          const y = getSample(src, yPlane + (row * w + col) * bps);
+          const uvCol = Math.floor(col / 2);
+          const u = getSample(src, uPlane + (row * uvW + uvCol) * bps);
+          const v = getSample(src, vPlane + (row * uvW + uvCol) * bps);
+          const [r, g, b] = yuvToRgb(y, u, v);
+          const idx = (row * w + col) * 4;
+          rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+        }
+      }
+    } else if (fmt === 'YUYV') {
+      // Packed: Y0 U0 Y1 V0
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col += 2) {
+          const base = (row * w + col) * 2 * bps;
+          const y0 = getSample(src, base);
+          const u  = getSample(src, base + bps);
+          const y1 = getSample(src, base + 2*bps);
+          const v  = getSample(src, base + 3*bps);
+          const [r0, g0, b0] = yuvToRgb(y0, u, v);
+          const [r1, g1, b1] = yuvToRgb(y1, u, v);
+          let idx = (row * w + col) * 4;
+          rgba[idx] = r0; rgba[idx+1] = g0; rgba[idx+2] = b0; rgba[idx+3] = 255;
+          if (col + 1 < w) {
+            idx += 4;
+            rgba[idx] = r1; rgba[idx+1] = g1; rgba[idx+2] = b1; rgba[idx+3] = 255;
+          }
+        }
+      }
+    } else if (fmt === 'UYVY') {
+      // Packed: U0 Y0 V0 Y1
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col += 2) {
+          const base = (row * w + col) * 2 * bps;
+          const u  = getSample(src, base);
+          const y0 = getSample(src, base + bps);
+          const v  = getSample(src, base + 2*bps);
+          const y1 = getSample(src, base + 3*bps);
+          const [r0, g0, b0] = yuvToRgb(y0, u, v);
+          const [r1, g1, b1] = yuvToRgb(y1, u, v);
+          let idx = (row * w + col) * 4;
+          rgba[idx] = r0; rgba[idx+1] = g0; rgba[idx+2] = b0; rgba[idx+3] = 255;
+          if (col + 1 < w) {
+            idx += 4;
+            rgba[idx] = r1; rgba[idx+1] = g1; rgba[idx+2] = b1; rgba[idx+3] = 255;
+          }
+        }
+      }
+    } else if (fmt === 'YUV444P') {
+      const yPlane = 0;
+      const uPlane = w * h * bps;
+      const vPlane = uPlane + w * h * bps;
+      for (let i = 0; i < w * h; i++) {
+        const y = getSample(src, yPlane + i * bps);
+        const u = getSample(src, uPlane + i * bps);
+        const v = getSample(src, vPlane + i * bps);
+        const [r, g, b] = yuvToRgb(y, u, v);
+        rgba[i*4] = r; rgba[i*4+1] = g; rgba[i*4+2] = b; rgba[i*4+3] = 255;
+      }
+    }
+
+    argbImageData = rgba;
+    argbWidth = w; argbHeight = h;
+    infoEl.textContent = `${fileName} | YUV ${fmt} ${bitDepth}bit | ${w}×${h} | 來源: ${source}`;
+    renderARGB();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  RAW FORMAT PARSING
+  // ══════════════════════════════════════════════════════════════
+
+  function parseRAW(arrayBuffer) {
+    let w, h, source;
+    if (isManuallyEdited && inputWidth.value && inputHeight.value) {
+      w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '手動輸入';
+    } else {
+      const dims = getDimensionsFromFileName(fileName);
+      if (dims) { w = dims.width; h = dims.height; source = '檔名'; }
+      else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
+      else { w = 128; h = 128; source = '預設'; }
+      inputWidth.value = w; inputHeight.value = h;
+    }
+
+    const fmt = rawPixfmtSelect.value;
+    const dv = new DataView(arrayBuffer);
+    const actual = arrayBuffer.byteLength;
+    const rgba = new Uint8ClampedArray(w * h * 4);
+
+    if (fmt === 'ARGB8888') {
+      for (let i = 0; i < w * h; i++) {
+        if (i * 4 + 3 < actual) {
+          rgba[i*4] = dv.getUint8(i*4+2); rgba[i*4+1] = dv.getUint8(i*4+1);
+          rgba[i*4+2] = dv.getUint8(i*4); rgba[i*4+3] = dv.getUint8(i*4+3);
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'ARGB4444') {
+      for (let i = 0; i < w * h; i++) {
+        if (i * 2 + 1 < actual) {
+          const v = dv.getUint16(i*2, true);
+          rgba[i*4] = ((v>>8)&0xF)*255/15; rgba[i*4+1] = ((v>>4)&0xF)*255/15;
+          rgba[i*4+2] = (v&0xF)*255/15; rgba[i*4+3] = ((v>>12)&0xF)*255/15;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'ARGB2222') {
+      for (let i = 0; i < w * h; i++) {
+        if (i < actual) {
+          const v = dv.getUint8(i);
+          rgba[i*4] = ((v>>4)&3)*255/3; rgba[i*4+1] = ((v>>2)&3)*255/3;
+          rgba[i*4+2] = (v&3)*255/3; rgba[i*4+3] = ((v>>6)&3)*255/3;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'ARGB1555') {
+      for (let i = 0; i < w * h; i++) {
+        if (i * 2 + 1 < actual) {
+          const v = dv.getUint16(i*2, true);
+          rgba[i*4] = ((v>>10)&0x1F)*255/31; rgba[i*4+1] = ((v>>5)&0x1F)*255/31;
+          rgba[i*4+2] = (v&0x1F)*255/31; rgba[i*4+3] = (v&0x8000)?255:0;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'RGB565') {
+      for (let i = 0; i < w * h; i++) {
+        if (i * 2 + 1 < actual) {
+          const v = dv.getUint16(i*2, true);
+          rgba[i*4] = ((v>>11)&0x1F)*255/31; rgba[i*4+1] = ((v>>5)&0x3F)*255/63;
+          rgba[i*4+2] = (v&0x1F)*255/31; rgba[i*4+3] = 255;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'RGB888') {
+      for (let i = 0; i < w * h; i++) {
+        if (i * 3 + 2 < actual) {
+          rgba[i*4] = dv.getUint8(i*3); rgba[i*4+1] = dv.getUint8(i*3+1);
+          rgba[i*4+2] = dv.getUint8(i*3+2); rgba[i*4+3] = 255;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'JR2') {
+      for (let i = 0; i < w * h; i++) {
+        const v = i < actual ? dv.getUint8(i) : 0;
+        rgba[i*4] = v; rgba[i*4+1] = v; rgba[i*4+2] = v; rgba[i*4+3] = 255;
+      }
+    }
+
+    argbImageData = rgba;
+    argbWidth = w; argbHeight = h;
+    infoEl.textContent = `${fileName} | RAW ${fmt} | ${w}×${h} | 來源: ${source}`;
+    renderARGB();
+  }
+
   // ── ARGB unified entry ────────────────────────────────────────
 
   function parseARGB(arrayBuffer, fn) {
@@ -927,19 +1218,27 @@
     const isJR2 = currentFormat === 'jr2';
     const isARGB = currentFormat === 'argb';
     const isPNG = currentFormat === 'png';
+    const isYUV = currentFormat === 'yuv';
+    const isRAW = currentFormat === 'raw';
 
     document.getElementById('section-jr2').style.display = isJR2 ? '' : 'none';
+    document.getElementById('section-yuv').style.display = isYUV ? '' : 'none';
+    document.getElementById('section-raw').style.display = isRAW ? '' : 'none';
 
-    // Show resolution inputs for ARGB without JL header
+    // Show resolution inputs for ARGB without JL header, YUV, and RAW
     const isJL = isARGB && argbResult && argbResult.source === 'header';
-    document.getElementById('section-resolution').style.display = (isARGB && !isJL) ? '' : 'none';
+    document.getElementById('section-resolution').style.display = ((isARGB && !isJL) || isYUV || isRAW) ? '' : 'none';
 
-    // Show background for ARGB and PNG
-    document.getElementById('section-background').style.display = (isARGB || isPNG) ? '' : 'none';
+    // Show background for ARGB, PNG, YUV, RAW
+    document.getElementById('section-background').style.display = (isARGB || isPNG || isYUV || isRAW) ? '' : 'none';
 
     // Update format detail
     if (isJR2) {
       formatDetail.textContent = `格式: JR2 RAW\n型號: ${modelStr}\n解析度: ${imgWidth}×${imgHeight}`;
+    } else if (isYUV) {
+      formatDetail.textContent = `格式: YUV ${yuvFormatSelect.value}\n位元深度: ${yuvBitdepthSelect.value} bit\nUV: ${yuvUvSignedCheckbox.checked ? 'Signed' : 'Unsigned'}\n解析度: ${argbWidth}×${argbHeight}`;
+    } else if (isRAW) {
+      formatDetail.textContent = `格式: RAW ${rawPixfmtSelect.value}\n解析度: ${argbWidth}×${argbHeight}`;
     } else if (isARGB && argbResult) {
       const fi = argbResult.formatInfo;
       let text = `格式: ${fi.symbol || fi.format}\n解析度: ${argbWidth}×${argbHeight}\n來源: ${argbResult.source}`;
@@ -1030,7 +1329,7 @@
             rawVal = rawData[cy * imgWidth + cx];
           }
           pixelInfo.textContent = `X:${cx} Y:${cy} | Raw: ${rawVal}`;
-        } else if (argbImageData) {
+        } else if (argbImageData && (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw')) {
           const idx = (cy * argbWidth + cx) * 4;
           pixelInfo.textContent = `X:${cx} Y:${cy} | R:${argbImageData[idx]} G:${argbImageData[idx+1]} B:${argbImageData[idx+2]} A:${argbImageData[idx+3]}`;
         }
@@ -1078,13 +1377,27 @@
   inputWidth.addEventListener('input', () => {
     isManuallyEdited = true;
     if (currentFormat === 'argb' && argbArrayBuffer) { parseARGB(argbArrayBuffer, fileName); fitToWindow(); }
+    else if (currentFormat === 'yuv' && yuvRawArrayBuffer) { parseYUV(yuvRawArrayBuffer); fitToWindow(); }
+    else if (currentFormat === 'raw' && yuvRawArrayBuffer) { parseRAW(yuvRawArrayBuffer); fitToWindow(); }
   });
   inputHeight.addEventListener('input', () => {
     isManuallyEdited = true;
     if (currentFormat === 'argb' && argbArrayBuffer) { parseARGB(argbArrayBuffer, fileName); fitToWindow(); }
+    else if (currentFormat === 'yuv' && yuvRawArrayBuffer) { parseYUV(yuvRawArrayBuffer); fitToWindow(); }
+    else if (currentFormat === 'raw' && yuvRawArrayBuffer) { parseRAW(yuvRawArrayBuffer); fitToWindow(); }
   });
   bgStyleSelect.addEventListener('change', () => {
-    if (currentFormat === 'argb' || currentFormat === 'png') renderARGB();
+    if (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw') renderARGB();
+  });
+
+  // YUV controls
+  document.getElementById('btn-yuv-apply').addEventListener('click', () => {
+    if (currentFormat === 'yuv' && yuvRawArrayBuffer) { parseYUV(yuvRawArrayBuffer); updateUIForFormat(); fitToWindow(); }
+  });
+
+  // RAW controls
+  document.getElementById('btn-raw-apply').addEventListener('click', () => {
+    if (currentFormat === 'raw' && yuvRawArrayBuffer) { parseRAW(yuvRawArrayBuffer); updateUIForFormat(); fitToWindow(); }
   });
 
   // Shared controls
