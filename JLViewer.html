@@ -629,9 +629,61 @@
   //  ARGB FORMAT PARSING (from tools.js)
   // ══════════════════════════════════════════════════════════════
 
+  // 常見解析度名稱對照表
+  const KNOWN_RESOLUTIONS = {
+    'qcif': [176, 144], 'cif': [352, 288], '4cif': [704, 576],
+    'qvga': [320, 240], 'vga': [640, 480], 'svga': [800, 600],
+    'xga': [1024, 768], 'sxga': [1280, 1024], 'uxga': [1600, 1200],
+    'wvga': [800, 480], 'wxga': [1280, 800], 'wuxga': [1920, 1200],
+    'hd': [1280, 720], '720p': [1280, 720], '1080p': [1920, 1080],
+    'fullhd': [1920, 1080], 'fhd': [1920, 1080],
+    '2k': [2560, 1440], '1440p': [2560, 1440], 'qhd': [2560, 1440],
+    '4k': [3840, 2160], '2160p': [3840, 2160], 'uhd': [3840, 2160],
+    '8k': [7680, 4320], '4320p': [7680, 4320],
+    'd1': [720, 480], 'ntsc': [720, 480], 'pal': [720, 576],
+  };
+
   function getDimensionsFromFileName(fn) {
-    const match = fn.match(/(\d+)[x_](\d+)/);
-    return match ? { width: parseInt(match[1]), height: parseInt(match[2]) } : null;
+    // 1) 嘗試 WxH 或 W_H 模式 (如 320x240, 1920X1080, 640_480)
+    const wxh = fn.match(/(\d{2,5})\s*[xX×]\s*(\d{2,5})/);
+    if (wxh) return { width: parseInt(wxh[1]), height: parseInt(wxh[2]) };
+
+    // 2) 嘗試 W_H 用底線分隔 (如 image_320_240.yuv)
+    const wuh = fn.match(/[_\-](\d{2,5})[_\-](\d{2,5})/);
+    if (wuh) {
+      const w = parseInt(wuh[1]), h = parseInt(wuh[2]);
+      if (w >= 2 && h >= 2 && w <= 8192 && h <= 8192) return { width: w, height: h };
+    }
+
+    // 3) 嘗試已知解析度名稱 (如 test_vga.yuv, 720p_sample.raw)
+    const lower = fn.toLowerCase();
+    for (const [name, [w, h]] of Object.entries(KNOWN_RESOLUTIONS)) {
+      if (lower.includes(name)) return { width: w, height: h };
+    }
+
+    return null;
+  }
+
+  // 根據檔案大小和 bpp 猜測常見解析度
+  function guessResolutionFromFileSize(byteLength, bpp) {
+    const totalPixels = Math.floor(byteLength / bpp);
+    const COMMON = [
+      [176, 144], [320, 240], [352, 288], [640, 480], [704, 576],
+      [720, 480], [720, 576], [800, 480], [800, 600],
+      [1024, 768], [1280, 720], [1280, 800], [1280, 1024],
+      [1920, 1080], [1920, 1200], [2560, 1440], [3840, 2160],
+    ];
+    for (const [w, h] of COMMON) {
+      if (w * h === totalPixels) return { width: w, height: h };
+    }
+    // 嘗試以 1.5x 比例 (YUV420) 反推
+    if (bpp === 1) {
+      const pixels420 = Math.floor(byteLength / 1.5);
+      for (const [w, h] of COMMON) {
+        if (w * h === pixels420) return { width: w, height: h };
+      }
+    }
+    return null;
   }
 
   function getBytesPerPixel(symbol) {
@@ -908,8 +960,12 @@
     } else {
       const dims = getDimensionsFromFileName(fileName);
       if (dims) { w = dims.width; h = dims.height; source = '檔名'; }
-      else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
-      else { w = 128; h = 128; source = '預設'; }
+      else {
+        const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, 1);
+        if (guess) { w = guess.width; h = guess.height; source = '檔案大小推測'; }
+        else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
+        else { w = 128; h = 128; source = '預設'; }
+      }
       inputWidth.value = w; inputHeight.value = h;
     }
 
@@ -1067,8 +1123,13 @@
     } else {
       const dims = getDimensionsFromFileName(fileName);
       if (dims) { w = dims.width; h = dims.height; source = '檔名'; }
-      else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
-      else { w = 128; h = 128; source = '預設'; }
+      else {
+        const bppMap = { ARGB8888: 4, ARGB4444: 2, ARGB1555: 2, ARGB2222: 1, RGB565: 2, RGB888: 3, JR2: 1 };
+        const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, bppMap[rawPixfmtSelect.value] || 1);
+        if (guess) { w = guess.width; h = guess.height; source = '檔案大小推測'; }
+        else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
+        else { w = 128; h = 128; source = '預設'; }
+      }
       inputWidth.value = w; inputHeight.value = h;
     }
 
@@ -1164,10 +1225,16 @@
         const dims = getDimensionsFromFileName(fn);
         if (dims) {
           w = dims.width; h = dims.height; source = '檔名';
-        } else if (inputWidth.value && inputHeight.value) {
-          w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框';
         } else {
-          w = 128; h = 128; source = '預設';
+          const bppGuess = fnLower.endsWith('.argb8888') ? 4 : fnLower.endsWith('.rgb888') ? 3 :
+            (fnLower.endsWith('.argb4444') || fnLower.endsWith('.argb1555') || fnLower.endsWith('.rgb565')) ? 2 : 1;
+          const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, bppGuess);
+          if (guess) { w = guess.width; h = guess.height; source = '檔案大小推測'; }
+          else if (inputWidth.value && inputHeight.value) {
+            w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框';
+          } else {
+            w = 128; h = 128; source = '預設';
+          }
         }
         inputWidth.value = w; inputHeight.value = h;
       }
