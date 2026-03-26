@@ -77,34 +77,24 @@
   }
 
   .card {
-    background: var(--card);
-    border: 1px solid var(--accent);
     padding: 3rem 3.5rem;
     position: relative;
     z-index: 1;
-    clip-path: polygon(
-      0 16px, 16px 0,
-      calc(100% - 16px) 0, 100% 16px,
-      100% calc(100% - 16px), calc(100% - 16px) 100%,
-      16px 100%, 0 calc(100% - 16px)
-    );
-    box-shadow:
-      0 0 10px #00ff8840,
-      0 0 30px #00ff8820,
-      inset 0 0 30px rgba(0,255,136,0.03);
-    animation: cardPulse 3s ease-in-out infinite;
   }
 
-  @keyframes cardPulse {
-    0%, 100% { box-shadow: 0 0 10px #00ff8840, 0 0 30px #00ff8820, inset 0 0 30px rgba(0,255,136,0.03); }
-    50% { box-shadow: 0 0 20px #00ff8860, 0 0 60px #00ff8840, 0 0 100px #00ff8815, inset 0 0 40px rgba(0,255,136,0.05); }
+  .nav-links {
+    display: flex;
+    gap: 2.5rem;
+    justify-content: center;
+    align-items: center;
   }
 
-  .bear-link {
-    display: block;
-    font-size: 5rem;
+  .tool-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-decoration: none;
-    line-height: 1.2;
+    font-size: 4rem;
     color: var(--accent);
     position: relative;
     text-shadow:
@@ -113,85 +103,59 @@
       0 0 40px #00ff8850,
       0 0 80px #00ff8830;
     animation: bearGlow 2s ease-in-out infinite, glitchBear 4s infinite;
+    transition: transform 0.15s;
   }
 
-  /* Chromatic aberration layers */
-  .bear-link::before,
-  .bear-link::after {
-    content: 'ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔ ก้้้้้้้้้้้';
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    overflow: hidden;
-    pointer-events: none;
-  }
-  .bear-link::before {
+  .tool-link:nth-child(2) {
     color: var(--accent2);
-    text-shadow: none;
-    opacity: 0.6;
-    animation: rgbShift1 3s infinite linear;
-  }
-  .bear-link::after {
-    color: var(--accent3);
-    text-shadow: none;
-    opacity: 0.6;
-    animation: rgbShift2 3s infinite linear;
+    text-shadow:
+      0 0 10px #ff00ff,
+      0 0 20px #ff00ff80,
+      0 0 40px #ff00ff50,
+      0 0 80px #ff00ff30;
+    animation: magentaGlow 2s ease-in-out infinite, glitchBear 4s infinite 0.5s;
   }
 
-  .bear-link:hover {
-    filter: brightness(1.3);
-    transform: scale(1.08);
+  .tool-link:nth-child(3) {
+    color: var(--accent3);
     text-shadow:
-      0 0 15px #00ff88,
-      0 0 30px #00ff88,
-      0 0 60px #00ff8880,
-      0 0 120px #00ff8850,
-      0 0 200px #00ff8830;
+      0 0 10px #00d4ff,
+      0 0 20px #00d4ff80,
+      0 0 40px #00d4ff50,
+      0 0 80px #00d4ff30;
+    animation: cyanGlow 2s ease-in-out infinite, glitchBear 4s infinite 1s;
   }
-  .bear-link:active {
+
+  .tool-label {
+    font-size: 0.7rem;
+    margin-top: 0.5rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+    opacity: 0.7;
+  }
+
+  .tool-link:hover {
+    filter: brightness(1.3);
+    transform: scale(1.15);
+  }
+  .tool-link:active {
     transform: scale(0.96);
   }
 
   @keyframes bearGlow {
-    0%, 100% {
-      text-shadow:
-        0 0 10px #00ff88,
-        0 0 20px #00ff8880,
-        0 0 40px #00ff8850,
-        0 0 80px #00ff8830;
-    }
-    50% {
-      text-shadow:
-        0 0 15px #00ff88,
-        0 0 30px #00ff88,
-        0 0 60px #00ff8880,
-        0 0 100px #00ff8850,
-        0 0 150px #00ff8820;
-    }
+    0%, 100% { text-shadow: 0 0 10px #00ff88, 0 0 20px #00ff8880, 0 0 40px #00ff8850, 0 0 80px #00ff8830; }
+    50% { text-shadow: 0 0 15px #00ff88, 0 0 30px #00ff88, 0 0 60px #00ff8880, 0 0 100px #00ff8850, 0 0 150px #00ff8820; }
   }
 
-  @keyframes rgbShift1 {
-    0%, 100% { clip-path: inset(0 0 95% 0); transform: translate(0); }
-    5%  { clip-path: inset(15% 0 60% 0); transform: translate(-4px, 2px); }
-    10% { clip-path: inset(0 0 95% 0); transform: translate(0); }
-    20% { clip-path: inset(50% 0 20% 0); transform: translate(-3px, -1px); }
-    22% { clip-path: inset(0 0 95% 0); transform: translate(0); }
-    45% { clip-path: inset(30% 0 40% 0); transform: translate(-5px, 3px); }
-    47% { clip-path: inset(0 0 95% 0); transform: translate(0); }
-    70% { clip-path: inset(70% 0 5% 0); transform: translate(-3px, -2px); }
-    72% { clip-path: inset(0 0 95% 0); transform: translate(0); }
+  @keyframes magentaGlow {
+    0%, 100% { text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff80, 0 0 40px #ff00ff50, 0 0 80px #ff00ff30; }
+    50% { text-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff, 0 0 60px #ff00ff80, 0 0 100px #ff00ff50, 0 0 150px #ff00ff20; }
   }
 
-  @keyframes rgbShift2 {
-    0%, 100% { clip-path: inset(95% 0 0 0); transform: translate(0); }
-    8%  { clip-path: inset(60% 0 15% 0); transform: translate(4px, -2px); }
-    12% { clip-path: inset(95% 0 0 0); transform: translate(0); }
-    30% { clip-path: inset(10% 0 70% 0); transform: translate(3px, 1px); }
-    33% { clip-path: inset(95% 0 0 0); transform: translate(0); }
-    55% { clip-path: inset(40% 0 30% 0); transform: translate(5px, -3px); }
-    58% { clip-path: inset(95% 0 0 0); transform: translate(0); }
-    80% { clip-path: inset(5% 0 70% 0); transform: translate(3px, 2px); }
-    83% { clip-path: inset(95% 0 0 0); transform: translate(0); }
+  @keyframes cyanGlow {
+    0%, 100% { text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff80, 0 0 40px #00d4ff50, 0 0 80px #00d4ff30; }
+    50% { text-shadow: 0 0 15px #00d4ff, 0 0 30px #00d4ff, 0 0 60px #00d4ff80, 0 0 100px #00d4ff50, 0 0 150px #00d4ff20; }
   }
 
   @keyframes glitchBear {
@@ -220,7 +184,20 @@
   <div class="ambient ambient--magenta"></div>
   <div class="ambient ambient--cyan"></div>
   <div class="card">
-    <a href="JLViewer.html" class="bear-link">ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔ ก้้้้้้้้้้้</a>
+    <div class="nav-links">
+      <a href="JLViewer.html" class="tool-link">
+        ʕ•͡ᴥ•ʔ
+        <span class="tool-label">Viewer</span>
+      </a>
+      <a href="frame-compare.html" class="tool-link">
+        (╯°□°)╯︵┻━┻
+        <span class="tool-label">Frame Compare</span>
+      </a>
+      <a href="ms_clock.html" class="tool-link">
+        (⏱ ͜ʖ⏱)
+        <span class="tool-label">Clock</span>
+      </a>
+    </div>
   </div>
 </body>
 </html>

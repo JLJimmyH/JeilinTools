@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBER_CLOCK // 相機延遲測試</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            /* Colors */
+            --bg: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-muted: #1c1c2e;
+            --text: #e0e0e0;
+            --text-muted: #6b7280;
+            --border: #2a2a3a;
+            --accent: #00ff88;
+            --accent-secondary: #ff00ff;
+            --accent-tertiary: #00d4ff;
+            --destructive: #ff3366;
+
+            /* Typography Scale (5 levels) */
+            --font-hero: clamp(8rem, 28vw, 16rem);      /* 毫秒數字 - 主視覺焦點 */
+            --font-display: clamp(1.5rem, 5vw, 3rem);   /* 時間顯示 - 次要資訊 */
+            --font-lg: 0.9375rem;                        /* 按鈕、輸入框 - 15px */
+            --font-base: 0.8125rem;                      /* 標籤、狀態 - 13px */
+            --font-sm: 0.6875rem;                        /* 輔助提示 - 11px */
+
+            /* Glow Effects */
+            --glow-sm: 0 0 5px var(--accent), 0 0 10px rgba(0, 255, 136, 0.4);
+            --glow-md: 0 0 10px var(--accent), 0 0 20px rgba(0, 255, 136, 0.5), 0 0 40px rgba(0, 255, 136, 0.3);
+            --glow-lg: 0 0 20px var(--accent), 0 0 40px rgba(0, 255, 136, 0.6), 0 0 80px rgba(0, 255, 136, 0.4);
+            --glow-secondary: 0 0 10px var(--accent-secondary), 0 0 20px rgba(255, 0, 255, 0.5);
+            --glow-tertiary: 0 0 10px var(--accent-tertiary), 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Circuit Grid Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Scanlines Overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.15) 2px,
+                rgba(0, 0, 0, 0.15) 4px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Chamfered corners */
+        .cyber-chamfer {
+            clip-path: polygon(
+                0 12px, 12px 0,
+                calc(100% - 12px) 0, 100% 12px,
+                100% calc(100% - 12px), calc(100% - 12px) 100%,
+                12px 100%, 0 calc(100% - 12px)
+            );
+        }
+
+        .cyber-chamfer-sm {
+            clip-path: polygon(
+                0 8px, 8px 0,
+                calc(100% - 8px) 0, 100% 8px,
+                100% calc(100% - 8px), calc(100% - 8px) 100%,
+                8px 100%, 0 calc(100% - 8px)
+            );
+        }
+
+        .clock-container {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            padding: 40px;
+        }
+
+        /* Cyber Header */
+        .cyber-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 12px 24px;
+            background: linear-gradient(90deg, transparent, var(--bg-muted), transparent);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            font-size: var(--font-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: var(--text-muted);
+            position: relative;
+        }
+
+        .cyber-header::before,
+        .cyber-header::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border: 1px solid var(--accent);
+            background: transparent;
+        }
+
+        .cyber-header::before {
+            left: 16px;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+
+        .cyber-header::after {
+            right: 16px;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+
+        .cyber-header-bracket {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .cyber-header-title {
+            color: var(--accent-tertiary);
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .cyber-header-version {
+            color: var(--accent-secondary);
+            font-size: 0.9em;
+        }
+
+        .cyber-header-blink {
+            animation: blink 1s step-end infinite;
+            color: var(--accent);
+        }
+
+        /* Glitch Text Effect */
+        .cyber-glitch {
+            position: relative;
+            animation: glitch 3s infinite;
+        }
+
+        .cyber-glitch::before,
+        .cyber-glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .cyber-glitch::before {
+            color: var(--accent-secondary);
+            animation: glitch-1 0.3s infinite linear alternate-reverse;
+            clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+            transform: translate(-2px, -1px);
+            opacity: 0.8;
+        }
+
+        .cyber-glitch::after {
+            color: var(--accent-tertiary);
+            animation: glitch-2 0.3s infinite linear alternate-reverse;
+            clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+            transform: translate(2px, 1px);
+            opacity: 0.8;
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0); }
+            92% { transform: translate(-3px, 1px) skew(-1deg); }
+            94% { transform: translate(2px, -1px) skew(1deg); }
+            96% { transform: translate(-1px, 2px); }
+            98% { transform: translate(1px, -2px); }
+        }
+
+        @keyframes glitch-1 {
+            0% { transform: translate(-2px, -1px); }
+            100% { transform: translate(2px, 1px); }
+        }
+
+        @keyframes glitch-2 {
+            0% { transform: translate(2px, 1px); }
+            100% { transform: translate(-2px, -1px); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: var(--glow-sm);
+                filter: brightness(1);
+            }
+            50% {
+                box-shadow: var(--glow-md);
+                filter: brightness(1.1);
+            }
+        }
+
+        @keyframes neon-flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+                text-shadow:
+                    0 0 10px var(--accent),
+                    0 0 20px var(--accent),
+                    0 0 40px var(--accent),
+                    0 0 80px var(--accent);
+            }
+            20%, 24%, 55% {
+                text-shadow: none;
+            }
+        }
+
+        .time-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: var(--font-display);
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: var(--accent);
+            text-shadow:
+                0 0 10px var(--accent),
+                0 0 20px rgba(0, 255, 136, 0.5);
+            margin-bottom: 16px;
+            will-change: contents;
+            contain: layout style;
+        }
+
+        .ms-label {
+            font-size: var(--font-sm);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .ms-label::before,
+        .ms-label::after {
+            content: '';
+            width: 50px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+
+        .ms-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: var(--font-hero);
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            color: var(--accent-tertiary);
+            text-shadow:
+                0 0 30px var(--accent-tertiary),
+                0 0 60px rgba(0, 212, 255, 0.5),
+                -2px 0 var(--accent-secondary),
+                2px 0 var(--accent);
+            margin-bottom: 24px;
+            line-height: 1;
+            will-change: contents;
+            contain: layout style;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: min(90vw, 800px);
+            margin: 0 auto 30px;
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--font-sm);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg,
+                var(--accent) 0%,
+                var(--accent-tertiary) 50%,
+                var(--accent-secondary) 100%
+            );
+            box-shadow:
+                0 0 10px var(--accent),
+                inset 0 0 10px rgba(255, 255, 255, 0.2);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            transform-origin: left center;
+            transform: scaleX(0);
+            will-change: transform;
+        }
+
+        .progress-fill.animate {
+            animation: progress-sweep 1s linear infinite;
+        }
+
+        @keyframes progress-sweep {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: white;
+            box-shadow: 0 0 10px white, 0 0 20px var(--accent);
+        }
+
+        .tick-marks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .tick {
+            width: 1px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tick:nth-child(6) {
+            width: 2px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Interval Control */
+        .interval-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .interval-control label {
+            font-size: var(--font-base);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .interval-control label::before {
+            content: '>';
+            color: var(--accent);
+            margin-right: 8px;
+        }
+
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 200px;
+            height: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--glow-sm);
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--glow-sm);
+        }
+
+        input[type="range"]:hover::-webkit-slider-thumb {
+            box-shadow: var(--glow-md);
+        }
+
+        input[type="number"] {
+            width: 80px;
+            font-size: var(--font-lg);
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--glow-sm);
+        }
+
+        .interval-control span {
+            color: var(--text-muted);
+            font-size: var(--font-base);
+            text-transform: uppercase;
+        }
+
+        /* Buttons */
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: var(--font-lg);
+            font-weight: 500;
+            padding: 12px 36px;
+            cursor: pointer;
+            border: 2px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
+            transition: left 0.3s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:hover {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: var(--glow-md);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.stop {
+            border-color: var(--destructive);
+            color: var(--destructive);
+        }
+
+        button.stop:hover {
+            background: var(--destructive);
+            color: var(--bg);
+            box-shadow: 0 0 10px var(--destructive), 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+
+        button.stop::before {
+            background: linear-gradient(90deg, transparent, rgba(255, 51, 102, 0.2), transparent);
+        }
+
+        /* Status */
+        .status {
+            margin-top: 24px;
+            font-size: var(--font-base);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+        }
+
+        .status.running {
+            color: var(--accent);
+        }
+
+        .status.running::before {
+            background: var(--accent);
+            box-shadow: var(--glow-sm);
+            animation: blink 1s step-end infinite;
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: var(--font-sm);
+            padding: 8px 16px;
+            z-index: 100;
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+
+        .fullscreen-btn:hover {
+            border-color: var(--accent-tertiary);
+            color: var(--accent-tertiary);
+            background: transparent;
+            box-shadow: var(--glow-tertiary);
+        }
+
+        /* HUD Corner Decorations */
+        .hud-corner {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--border);
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .hud-corner.top-left {
+            top: 20px;
+            left: 20px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .hud-corner.top-right {
+            top: 20px;
+            right: 20px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .hud-corner.bottom-left {
+            bottom: 20px;
+            left: 20px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .hud-corner.bottom-right {
+            bottom: 20px;
+            right: 20px;
+            border-left: none;
+            border-top: none;
+        }
+
+        /* QR Code Container */
+        .qr-container {
+            position: fixed;
+            top: 50%;
+            right: 40px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .qr-wrapper {
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .qr-wrapper::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 1px solid var(--accent);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .qr-wrapper canvas,
+        .qr-wrapper img {
+            display: block;
+        }
+
+        #qrcode {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #qrcode canvas {
+            border: none !important;
+        }
+
+        .qr-label {
+            font-size: var(--font-sm);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            text-align: center;
+        }
+
+        .qr-label span {
+            color: var(--accent);
+        }
+
+        .qr-data {
+            font-size: 0.625rem;
+            color: var(--accent-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+            max-width: 150px;
+            word-break: break-all;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        /* Keyboard Hints */
+        .keyboard-hints {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 24px;
+            font-size: var(--font-sm);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            z-index: 100;
+        }
+
+        .keyboard-hint kbd {
+            display: inline-block;
+            padding: 3px 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            margin-right: 6px;
+            font-family: inherit;
+            font-size: inherit;
+            color: var(--accent);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            :root {
+                --font-hero: clamp(5rem, 32vw, 10rem);
+                --font-display: clamp(1.25rem, 6vw, 2rem);
+            }
+
+            .clock-container {
+                padding: 16px;
+            }
+
+            .keyboard-hints {
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .hud-corner {
+                width: 24px;
+                height: 24px;
+            }
+
+            .fullscreen-btn {
+                top: 10px;
+                right: 10px;
+                padding: 6px 12px;
+            }
+
+            .cyber-header {
+                padding: 10px 16px;
+                font-size: 0.6rem;
+            }
+
+            .qr-container {
+                position: relative;
+                right: auto;
+                top: auto;
+                transform: none;
+                margin-top: 20px;
+            }
+
+            .controls {
+                gap: 12px;
+            }
+
+            button {
+                padding: 10px 24px;
+            }
+        }
+
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            .cyber-glitch,
+            .cyber-glitch::before,
+            .cyber-glitch::after {
+                animation: none;
+            }
+
+            .status.running::before {
+                animation: none;
+            }
+
+            button::before {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HUD Corners -->
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    <div class="hud-corner bottom-left"></div>
+    <div class="hud-corner bottom-right"></div>
+
+    <button class="fullscreen-btn cyber-chamfer-sm" onclick="toggleFullscreen()">[F] 全螢幕</button>
+
+    <!-- QR Code Display -->
+    <div class="qr-container" id="qrContainer">
+        <div class="qr-label"><span>&lt;</span> QR_SYNC <span>/&gt;</span></div>
+        <div class="qr-wrapper cyber-chamfer-sm">
+            <div id="qrcode"></div>
+        </div>
+        <div class="qr-data" id="qrData">--</div>
+    </div>
+
+    <div class="clock-container">
+        <!-- Cyber Header -->
+        <div class="cyber-header">
+            <span class="cyber-header-bracket">[[</span>
+            <span class="cyber-header-title">CYBER_CLOCK</span>
+            <span class="cyber-header-version">v2.1</span>
+            <span class="cyber-header-bracket">]]</span>
+            <span class="cyber-header-blink">_</span>
+        </div>
+
+        <div class="time-display cyber-glitch" data-text="00:00:00" id="timeDisplay">00:00:00</div>
+
+        <div class="ms-label">MILLISECONDS</div>
+
+        <div class="ms-display" id="msDisplay">000</div>
+
+        <div class="progress-container">
+            <div class="progress-labels">
+                <span>0ms</span>
+                <span>500ms</span>
+                <span>1000ms</span>
+            </div>
+            <div class="progress-bar cyber-chamfer-sm">
+                <div class="progress-fill" id="progressFill"></div>
+                <div class="tick-marks">
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="interval-control">
+            <label>更新間隔</label>
+            <input type="range" id="intervalSlider" min="1" max="100" value="1" oninput="updateInterval(this.value)">
+            <input type="number" id="intervalInput" min="1" max="1000" value="1" onchange="updateInterval(this.value)" class="cyber-chamfer-sm">
+            <span>ms</span>
+        </div>
+
+        <div class="controls">
+            <button id="toggleBtn" class="cyber-chamfer-sm" onclick="toggleClock()">[ 開始 ]</button>
+        </div>
+
+        <div class="status" id="status">SYSTEM_STANDBY</div>
+    </div>
+
+    <div class="keyboard-hints">
+        <span class="keyboard-hint"><kbd>SPACE</kbd> 開始/停止</span>
+        <span class="keyboard-hint"><kbd>F</kbd> 全螢幕</span>
+    </div>
+
+    <script>
+        let rafId = null;
+        let isRunning = false;
+        let currentInterval = 1;
+        let lastUpdateTime = 0;
+        let lastSyncedSecond = -1;
+
+        const timeDisplay = document.getElementById('timeDisplay');
+        const msDisplay = document.getElementById('msDisplay');
+        const progressFill = document.getElementById('progressFill');
+        const status = document.getElementById('status');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const qrEl = document.getElementById('qrcode');
+        const qrDataEl = document.getElementById('qrData');
+
+        // QR Code
+        const qrSize = 120;
+        let qrCode = null;
+        let lastQrText = '';
+
+        function initQRCode() {
+            qrCode = new QRCode(qrEl, {
+                text: 'STANDBY',
+                width: qrSize,
+                height: qrSize,
+                colorDark: '#00d4ff',
+                colorLight: '#12121a',
+                correctLevel: QRCode.CorrectLevel.L
+            });
+        }
+
+        function updateQRCode(text) {
+            if (text === lastQrText) return;
+            lastQrText = text;
+            if (qrCode) {
+                qrCode.clear();
+                qrCode.makeCode(text);
+            }
+            qrDataEl.textContent = text;
+        }
+
+        function formatDate(date) {
+            const Y = date.getFullYear();
+            const M = String(date.getMonth() + 1).padStart(2, '0');
+            const D = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            const ms = String(date.getMilliseconds()).padStart(3, '0');
+            return { Y, M, D, h, m, s, ms };
+        }
+
+        function renderFrame(date) {
+            const { Y, M, D, h, m, s, ms } = formatDate(date);
+
+            const timeText = `${h}:${m}:${s}`;
+            timeDisplay.textContent = timeText;
+            timeDisplay.setAttribute('data-text', timeText);
+            msDisplay.textContent = ms;
+
+            // 進度條：每秒同步 CSS animation
+            const sec = date.getSeconds();
+            if (sec !== lastSyncedSecond) {
+                lastSyncedSecond = sec;
+                progressFill.classList.remove('animate');
+                void progressFill.offsetWidth;
+                progressFill.style.animationDelay = `-${date.getMilliseconds()}ms`;
+                progressFill.classList.add('animate');
+            }
+
+            // QR Code
+            updateQRCode(`${Y}-${M}-${D} ${h}:${m}:${s}.${ms}`);
+        }
+
+        // 主迴圈：用 rAF 驅動，根據 currentInterval 節流
+        function tick(timestamp) {
+            if (!isRunning) return;
+
+            if (timestamp - lastUpdateTime >= currentInterval) {
+                lastUpdateTime = timestamp;
+                renderFrame(new Date());
+            }
+
+            rafId = requestAnimationFrame(tick);
+        }
+
+        function toggleClock() {
+            if (isRunning) {
+                // 停止 — 凍結進度條在當前位置
+                isRunning = false;
+                cancelAnimationFrame(rafId);
+                rafId = null;
+
+                // 取得當前毫秒，算出進度條位置並凍結
+                const frozenMs = new Date().getMilliseconds();
+                progressFill.classList.remove('animate');
+                progressFill.style.transform = `scaleX(${frozenMs / 1000})`;
+
+                status.textContent = 'SYSTEM_STANDBY';
+                status.className = 'status';
+                toggleBtn.textContent = '[ 開始 ]';
+                toggleBtn.classList.remove('stop');
+                lastSyncedSecond = -1;
+            } else {
+                // 開始
+                isRunning = true;
+                lastUpdateTime = 0;
+                status.textContent = `ACTIVE // ${currentInterval}ms`;
+                status.className = 'status running';
+                toggleBtn.textContent = '[ 停止 ]';
+                toggleBtn.classList.add('stop');
+
+                // 立刻渲染一幀，然後啟動 rAF
+                renderFrame(new Date());
+                rafId = requestAnimationFrame(tick);
+            }
+        }
+
+        function updateInterval(value) {
+            value = Math.max(1, Math.min(1000, parseInt(value) || 1));
+            currentInterval = value;
+            document.getElementById('intervalSlider').value = Math.min(value, 100);
+            document.getElementById('intervalInput').value = value;
+
+            if (isRunning) {
+                lastUpdateTime = 0; // 強制下一幀立刻更新
+                status.textContent = `ACTIVE // ${currentInterval}ms`;
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 初始化
+        initQRCode();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                toggleClock();
+            } else if (e.code === 'KeyF') {
+                toggleFullscreen();
+            }
+        });
+    </script>
+</body>
+</html>

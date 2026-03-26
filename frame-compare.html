@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>影片逐幀比較工具</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+header {
+    padding: 12px 24px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+header h1 { font-size: 17px; font-weight: 600; color: #f0f6fc; }
+.header-btns { display: flex; gap: 6px; }
+
+/* ===== Upload Section ===== */
+.upload-section {
+    display: flex;
+    gap: 16px;
+    padding: 24px;
+    justify-content: center;
+}
+.upload-section.collapsed {
+    padding: 8px 24px;
+    gap: 8px;
+}
+.upload-section.collapsed .drop-zone {
+    padding: 10px 20px;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+}
+.upload-section.collapsed .drop-zone h3 { margin-bottom: 0; font-size: 13px; }
+.upload-section.collapsed .drop-zone p { display: none; }
+.upload-section.collapsed .drop-zone .file-info { margin-top: 0; }
+.drop-zone {
+    flex: 1;
+    max-width: 500px;
+    border: 2px dashed #30363d;
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #161b22;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: #58a6ff;
+    background: #1c2333;
+}
+.drop-zone.loaded {
+    border-color: #3fb950;
+    border-style: solid;
+}
+.drop-zone h3 { font-size: 15px; margin-bottom: 8px; color: #f0f6fc; }
+.drop-zone p { font-size: 13px; color: #8b949e; }
+.drop-zone .file-info {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #58a6ff;
+    word-break: break-all;
+}
+.drop-zone input[type="file"] { display: none; }
+
+/* ===== Compare Section ===== */
+#compareSection {
+    display: none;
+    padding: 0 24px 24px;
+}
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mode-tabs {
+    display: flex;
+    gap: 2px;
+    background: #161b22;
+    padding: 3px;
+    border-radius: 8px;
+}
+.mode-tabs button {
+    padding: 7px 16px;
+    border: none;
+    background: transparent;
+    color: #8b949e;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+.mode-tabs button.active { background: #58a6ff; color: #fff; }
+.mode-tabs button:hover:not(.active) { color: #c9d1d9; background: #21262d; }
+.diff-settings {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #8b949e;
+}
+.diff-settings.visible { display: flex; }
+
+/* ===== Compare View ===== */
+.compare-view {
+    background: #010409;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+    line-height: 0;
+}
+.view-mode { display: none; }
+.view-mode.active { display: block; }
+
+/* Side by Side */
+.sbs { display: flex; gap: 2px; background: #30363d; }
+.sbs .panel { flex: 1; position: relative; background: #010409; overflow: hidden; }
+.sbs .panel .tag {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(0,0,0,0.75); color: #fff;
+    padding: 2px 10px; border-radius: 4px; font-size: 12px;
+    z-index: 2; line-height: 1.5;
+}
+.sbs canvas { width: 100%; height: auto; display: block; }
+
+/* Overlay */
+.ov-wrap { position: relative; overflow: hidden; }
+.ov-wrap canvas { width: 100%; height: auto; display: block; }
+.ov-wrap .cv-top { position: absolute; top: 0; left: 0; will-change: clip-path; }
+.ov-handle {
+    position: absolute; top: 0; bottom: 0;
+    width: 3px; background: #ff4757;
+    cursor: ew-resize; z-index: 10;
+    transform: translateX(-50%);
+}
+.ov-handle::after {
+    content: '\2B0C';
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px; height: 30px;
+    background: #ff4757; border-radius: 50%;
+    border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff;
+    line-height: 30px; text-align: center;
+}
+.ov-label {
+    position: absolute; top: 8px;
+    background: rgba(0,0,0,0.75); color: #fff;
+    padding: 2px 10px; border-radius: 4px; font-size: 12px;
+    z-index: 2; line-height: 1.5;
+}
+.ov-label.left { left: 8px; }
+.ov-label.right { right: 8px; }
+
+/* Diff */
+.diff-wrap { position: relative; }
+.diff-wrap canvas { width: 100%; height: auto; display: block; }
+.diff-wrap .tag {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(0,0,0,0.75); color: #fff;
+    padding: 2px 10px; border-radius: 4px; font-size: 12px;
+    z-index: 2; line-height: 1.5;
+}
+
+/* ===== Controls ===== */
+.controls {
+    margin-top: 12px;
+    background: #161b22;
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid #30363d;
+}
+.ctrl-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.ctrl-row:last-child { margin-bottom: 0; }
+
+.frame-slider {
+    flex: 1;
+    -webkit-appearance: none; appearance: none;
+    height: 6px; background: #21262d;
+    border-radius: 3px; outline: none;
+}
+.frame-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    background: #58a6ff; border-radius: 50%; cursor: pointer;
+}
+.frame-slider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    background: #58a6ff; border-radius: 50%;
+    cursor: pointer; border: none;
+}
+.btn {
+    padding: 5px 12px;
+    border: 1px solid #30363d; background: #21262d; color: #c9d1d9;
+    border-radius: 6px; cursor: pointer; font-size: 13px;
+    transition: all 0.15s; white-space: nowrap; line-height: 1.4;
+}
+.btn:hover { background: #30363d; border-color: #8b949e; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary { background: #238636; border-color: #2ea043; color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #2ea043; }
+.btn.accent { background: #8957e5; border-color: #a371f7; color: #fff; }
+.btn.accent:hover:not(:disabled) { background: #a371f7; }
+.btn-sm { padding: 2px 7px; font-size: 11px; }
+.frame-info {
+    font-size: 13px; font-variant-numeric: tabular-nums;
+    min-width: 240px; text-align: center; color: #e6edf3;
+}
+.settings-row {
+    display: flex; align-items: center;
+    gap: 14px; flex-wrap: wrap;
+}
+.settings-row label {
+    font-size: 13px; color: #8b949e;
+    display: flex; align-items: center; gap: 5px;
+}
+.settings-row select,
+.settings-row input[type="number"] {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+    padding: 3px 8px; border-radius: 4px; font-size: 13px;
+}
+.shortcuts {
+    font-size: 11px; color: #484f58; margin-left: auto;
+}
+.shortcuts kbd {
+    background: #21262d; padding: 1px 5px; border-radius: 3px;
+    border: 1px solid #30363d; font-family: inherit; font-size: 11px;
+}
+
+/* ===== Trim Section ===== */
+.trim-section {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #21262d;
+}
+.trim-title {
+    font-size: 12px; color: #484f58; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.trim-grid {
+    display: flex; gap: 16px; flex-wrap: wrap;
+}
+.trim-vid {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #8b949e;
+}
+.trim-vid strong { color: #58a6ff; min-width: 14px; }
+.trim-vid input[type="number"] {
+    width: 80px; background: #0d1117; border: 1px solid #30363d;
+    color: #c9d1d9; padding: 3px 6px; border-radius: 4px; font-size: 12px;
+}
+.trim-vid .sep { margin: 0 2px; color: #484f58; }
+.trim-info {
+    font-size: 12px; color: #8b949e; margin-top: 6px;
+}
+.trim-info b { color: #c9d1d9; }
+
+/* ===== Warning ===== */
+.warn {
+    background: #462c10; border: 1px solid #6e4a1e; color: #f0c060;
+    padding: 8px 14px; border-radius: 6px; font-size: 13px;
+    margin-bottom: 12px; display: none;
+}
+.warn.visible { display: block; }
+
+/* ===== Export Overlay ===== */
+.export-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center; justify-content: center;
+}
+.export-overlay.visible { display: flex; }
+.export-dialog {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 32px 40px;
+    text-align: center;
+    min-width: 360px;
+}
+.export-dialog h3 { font-size: 16px; color: #f0f6fc; margin-bottom: 16px; }
+.progress-bar {
+    height: 8px; background: #21262d;
+    border-radius: 4px; overflow: hidden;
+    margin-bottom: 12px;
+}
+.progress-fill {
+    height: 100%; background: #58a6ff;
+    border-radius: 4px; width: 0%;
+    transition: width 0.15s;
+}
+.export-status {
+    font-size: 13px; color: #8b949e;
+    margin-bottom: 16px;
+    min-height: 1.4em;
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>影片逐幀比較工具</h1>
+    <div class="header-btns">
+        <button class="btn" id="btnSave" style="display:none" title="儲存目前畫面為 PNG">儲存截圖</button>
+        <button class="btn accent" id="btnExport" style="display:none" title="將比較畫面匯出為 MP4">匯出 MP4</button>
+    </div>
+</header>
+
+<div class="upload-section" id="uploadSection">
+    <div class="drop-zone" id="dropA">
+        <h3>影片 A</h3>
+        <p>拖曳影片到此處，或點擊選擇</p>
+        <input type="file" accept="video/mp4,video/*" id="fileA">
+        <div class="file-info" id="infoA"></div>
+    </div>
+    <div class="drop-zone" id="dropB">
+        <h3>影片 B</h3>
+        <p>拖曳影片到此處，或點擊選擇</p>
+        <input type="file" accept="video/mp4,video/*" id="fileB">
+        <div class="file-info" id="infoB"></div>
+    </div>
+</div>
+
+<div id="compareSection">
+    <div class="warn" id="warnDuration"></div>
+
+    <div class="toolbar">
+        <div class="mode-tabs" id="modeTabs">
+            <button class="active" data-mode="sideBySide">並排比較</button>
+            <button data-mode="overlay">滑動比較</button>
+            <button data-mode="diff">差異比較</button>
+        </div>
+        <div class="diff-settings" id="diffSettings">
+            <span>差異放大:</span>
+            <input type="range" id="diffMult" min="1" max="30" value="5" style="width:100px;">
+            <span id="diffMultVal">5x</span>
+        </div>
+    </div>
+
+    <div class="compare-view">
+        <div class="view-mode active" id="vSbs">
+            <div class="sbs">
+                <div class="panel"><span class="tag">A</span><canvas id="cSbsA"></canvas></div>
+                <div class="panel"><span class="tag">B</span><canvas id="cSbsB"></canvas></div>
+            </div>
+        </div>
+        <div class="view-mode" id="vOv">
+            <div class="ov-wrap" id="ovWrap">
+                <span class="ov-label left">A</span>
+                <span class="ov-label right">B</span>
+                <canvas id="cOvA"></canvas>
+                <canvas id="cOvB" class="cv-top"></canvas>
+                <div class="ov-handle" id="ovHandle"></div>
+            </div>
+        </div>
+        <div class="view-mode" id="vDiff">
+            <div class="diff-wrap">
+                <span class="tag">差異 (亮 = 差異大)</span>
+                <canvas id="cDiff"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <!-- Trim -->
+        <div class="trim-section" id="trimSection">
+            <div class="trim-title">時間範圍</div>
+            <div class="trim-grid">
+                <div class="trim-vid">
+                    <strong>A</strong>
+                    <span>起始</span>
+                    <input type="number" id="trimAS" step="0.001" min="0" value="0"> s
+                    <button class="btn btn-sm" id="btnTAS" title="設為目前幀的時間">&larr;幀</button>
+                    <span class="sep">~</span>
+                    <span>結束</span>
+                    <input type="number" id="trimAE" step="0.001" min="0" value="0"> s
+                    <button class="btn btn-sm" id="btnTAE" title="設為目前幀的時間">&larr;幀</button>
+                </div>
+                <div class="trim-vid">
+                    <strong>B</strong>
+                    <span>起始</span>
+                    <input type="number" id="trimBS" step="0.001" min="0" value="0"> s
+                    <button class="btn btn-sm" id="btnTBS" title="設為目前幀的時間">&larr;幀</button>
+                    <span class="sep">~</span>
+                    <span>結束</span>
+                    <input type="number" id="trimBE" step="0.001" min="0" value="0"> s
+                    <button class="btn btn-sm" id="btnTBE" title="設為目前幀的時間">&larr;幀</button>
+                </div>
+                <button class="btn btn-sm" id="btnTrimReset" title="重設為原始範圍">重設</button>
+            </div>
+            <div class="trim-info" id="trimInfo"></div>
+        </div>
+
+        <!-- Nav -->
+        <div class="ctrl-row">
+            <button class="btn" id="btnPrev" title="上一幀 (←)">&#9664;</button>
+            <button class="btn" id="btnPrevX" title="往前 10 幀">-10</button>
+            <button class="btn primary" id="btnPlay" title="播放/暫停 (Space)">&#9654; 播放</button>
+            <button class="btn" id="btnNextX" title="往後 10 幀">+10</button>
+            <button class="btn" id="btnNext" title="下一幀 (→)">&#9654;</button>
+            <input type="range" class="frame-slider" id="frameSlider" min="0" max="0" value="0">
+            <div class="frame-info" id="frameInfo">Frame 0 / 0</div>
+        </div>
+        <div class="ctrl-row settings-row">
+            <label>FPS:
+                <select id="selFps">
+                    <option value="23.976">23.976</option>
+                    <option value="24">24</option>
+                    <option value="25">25</option>
+                    <option value="29.97">29.97</option>
+                    <option value="30" selected>30</option>
+                    <option value="50">50</option>
+                    <option value="60">60</option>
+                    <option value="120">120</option>
+                </select>
+            </label>
+            <label>跳至幀:
+                <input type="number" id="inpGoto" min="0" value="0" style="width:72px;">
+            </label>
+            <span class="shortcuts">
+                <kbd>&larr;</kbd><kbd>&rarr;</kbd> 逐幀 &nbsp;
+                <kbd>Space</kbd> 播放 &nbsp;
+                <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 模式 &nbsp;
+                <kbd>Home</kbd><kbd>End</kbd> 首尾
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Export Overlay -->
+<div class="export-overlay" id="exportOverlay">
+    <div class="export-dialog">
+        <h3>匯出 MP4</h3>
+        <div class="progress-bar"><div class="progress-fill" id="exportProgress"></div></div>
+        <div class="export-status" id="exportStatus">準備中...</div>
+        <button class="btn" id="btnCancelExport">取消</button>
+    </div>
+</div>
+
+<script>
+// ======================== State ========================
+let vidA = null, vidB = null;
+let frame = 0, total = 0;
+let fps = 30;
+let mode = 'sideBySide';
+let ovPos = 0.5;
+let playing = false;
+let seekGen = 0;
+let diffMult = 5;
+let rafId = null;
+let _tA = null, _tB = null;
+
+// Trim state (absolute times in seconds)
+let trimA = { start: 0, end: 0 };
+let trimB = { start: 0, end: 0 };
+
+// Export state
+let exporting = false;
+let exportCancel = false;
+
+// ======================== DOM ========================
+const $ = id => document.getElementById(id);
+const cSbsA = $('cSbsA'), cSbsB = $('cSbsB');
+const cOvA = $('cOvA'), cOvB = $('cOvB');
+const cDiff = $('cDiff');
+const frameSlider = $('frameSlider');
+const frameInfo = $('frameInfo');
+const ovWrap = $('ovWrap');
+const ovHandle = $('ovHandle');
+
+// ======================== Drop Zone ========================
+function initDrop(zone, input, which) {
+    zone.addEventListener('click', () => input.click());
+    input.addEventListener('change', e => {
+        if (e.target.files[0]) loadFile(e.target.files[0], which);
+    });
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0], which);
+    });
+}
+
+function loadFile(file, which) {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.preload = 'auto';
+    video.playsInline = true;
+    video.src = URL.createObjectURL(file);
+    video.addEventListener('loadeddata', () => {
+        const info = which === 'A' ? $('infoA') : $('infoB');
+        const zone = which === 'A' ? $('dropA') : $('dropB');
+        info.innerHTML = `<b>${file.name}</b> &mdash; ${video.videoWidth}&times;${video.videoHeight}, ${video.duration.toFixed(2)}s`;
+        zone.classList.add('loaded');
+        if (which === 'A') {
+            if (vidA) URL.revokeObjectURL(vidA.src);
+            vidA = video;
+        } else {
+            if (vidB) URL.revokeObjectURL(vidB.src);
+            vidB = video;
+        }
+        if (vidA && vidB) onReady();
+    });
+}
+
+function onReady() {
+    // Init trim to full range
+    trimA.start = 0; trimA.end = vidA.duration;
+    trimB.start = 0; trimB.end = vidB.duration;
+    $('trimAS').value = '0.000'; $('trimAE').value = vidA.duration.toFixed(3);
+    $('trimBS').value = '0.000'; $('trimBE').value = vidB.duration.toFixed(3);
+    $('trimAS').max = vidA.duration; $('trimAE').max = vidA.duration;
+    $('trimBS').max = vidB.duration; $('trimBE').max = vidB.duration;
+
+    recalcRange();
+    initCanvases();
+
+    // Duration warning
+    const warn = $('warnDuration');
+    if (Math.abs(vidA.duration - vidB.duration) > 0.1) {
+        warn.textContent = `注意：兩影片長度不同 (A: ${vidA.duration.toFixed(2)}s, B: ${vidB.duration.toFixed(2)}s)，可透過「時間範圍」調整對齊。`;
+        warn.classList.add('visible');
+    } else {
+        warn.classList.remove('visible');
+    }
+
+    $('compareSection').style.display = 'block';
+    $('btnSave').style.display = '';
+    $('btnExport').style.display = '';
+    $('uploadSection').classList.add('collapsed');
+
+    frame = 0;
+    seekTo(0);
+}
+
+function initCanvases() {
+    const wA = vidA.videoWidth, hA = vidA.videoHeight;
+    const wB = vidB.videoWidth, hB = vidB.videoHeight;
+    cSbsA.width = wA; cSbsA.height = hA;
+    cSbsB.width = wB; cSbsB.height = hB;
+    cOvA.width = wA; cOvA.height = hA;
+    cOvB.width = wA; cOvB.height = hA;
+    cDiff.width = wA; cDiff.height = hA;
+}
+
+// ======================== Trim ========================
+function readTrimInputs() {
+    trimA.start = Math.max(0, parseFloat($('trimAS').value) || 0);
+    trimA.end   = Math.min(vidA.duration, parseFloat($('trimAE').value) || vidA.duration);
+    trimB.start = Math.max(0, parseFloat($('trimBS').value) || 0);
+    trimB.end   = Math.min(vidB.duration, parseFloat($('trimBE').value) || vidB.duration);
+    if (trimA.end <= trimA.start) trimA.end = trimA.start + 1 / fps;
+    if (trimB.end <= trimB.start) trimB.end = trimB.start + 1 / fps;
+}
+
+function recalcRange() {
+    const durA = trimA.end - trimA.start;
+    const durB = trimB.end - trimB.start;
+    const dur = Math.min(durA, durB);
+    total = Math.max(1, Math.floor(dur * fps));
+    frameSlider.max = total - 1;
+    $('inpGoto').max = total - 1;
+    frame = Math.min(frame, total - 1);
+    updateTrimInfo();
+}
+
+function updateTrimInfo() {
+    const durA = (trimA.end - trimA.start).toFixed(3);
+    const durB = (trimB.end - trimB.start).toFixed(3);
+    $('trimInfo').innerHTML =
+        `A: <b>${durA}</b>s &nbsp; B: <b>${durB}</b>s &nbsp; 比較範圍: <b>${Math.min(durA, durB)}</b>s = <b>${total}</b> 幀`;
+}
+
+function onTrimChange() {
+    readTrimInputs();
+    recalcRange();
+    seekTo(frame);
+}
+
+// Trim input events
+['trimAS','trimAE','trimBS','trimBE'].forEach(id => {
+    $(id).addEventListener('change', onTrimChange);
+});
+
+// "Set to current frame" buttons
+$('btnTAS').addEventListener('click', () => {
+    $('trimAS').value = (trimA.start + frame / fps).toFixed(3);
+    onTrimChange();
+});
+$('btnTAE').addEventListener('click', () => {
+    $('trimAE').value = (trimA.start + frame / fps).toFixed(3);
+    onTrimChange();
+});
+$('btnTBS').addEventListener('click', () => {
+    $('trimBS').value = (trimB.start + frame / fps).toFixed(3);
+    onTrimChange();
+});
+$('btnTBE').addEventListener('click', () => {
+    $('trimBE').value = (trimB.start + frame / fps).toFixed(3);
+    onTrimChange();
+});
+$('btnTrimReset').addEventListener('click', () => {
+    if (!vidA || !vidB) return;
+    $('trimAS').value = '0.000'; $('trimAE').value = vidA.duration.toFixed(3);
+    $('trimBS').value = '0.000'; $('trimBE').value = vidB.duration.toFixed(3);
+    onTrimChange();
+});
+
+// ======================== Seeking ========================
+function seekVid(v, t) {
+    return new Promise(resolve => {
+        t = Math.max(0, Math.min(t, v.duration));
+        if (Math.abs(v.currentTime - t) < 0.0005) { resolve(); return; }
+        const h = () => { v.removeEventListener('seeked', h); resolve(); };
+        v.addEventListener('seeked', h);
+        v.currentTime = t;
+    });
+}
+
+async function seekTo(f) {
+    if (exporting) return;
+    f = Math.max(0, Math.min(f, total - 1));
+    frame = f;
+    const gen = ++seekGen;
+    const tA = trimA.start + f / fps;
+    const tB = trimB.start + f / fps;
+    frameSlider.value = f;
+    $('inpGoto').value = f;
+    updateInfo();
+    await Promise.all([seekVid(vidA, tA), seekVid(vidB, tB)]);
+    if (gen === seekGen) render();
+}
+
+function updateInfo() {
+    const tRel = frame / fps;
+    const m = Math.floor(tRel / 60);
+    const s = (tRel % 60).toFixed(3).padStart(6, '0');
+    const absA = (trimA.start + tRel).toFixed(3);
+    const absB = (trimB.start + tRel).toFixed(3);
+    frameInfo.textContent = `Frame ${frame}/${total - 1}  (${m}:${s})  A:${absA}s B:${absB}s`;
+}
+
+// ======================== Rendering ========================
+function render() {
+    if (mode === 'sideBySide') renderSbs();
+    else if (mode === 'overlay') renderOv();
+    else renderDiffMode();
+}
+
+function renderSbs() {
+    cSbsA.getContext('2d').drawImage(vidA, 0, 0, cSbsA.width, cSbsA.height);
+    cSbsB.getContext('2d').drawImage(vidB, 0, 0, cSbsB.width, cSbsB.height);
+}
+
+function renderOv() {
+    cOvA.getContext('2d').drawImage(vidA, 0, 0, cOvA.width, cOvA.height);
+    cOvB.getContext('2d').drawImage(vidB, 0, 0, cOvB.width, cOvB.height);
+    applyOvClip();
+}
+
+function applyOvClip() {
+    const pct = ovPos * 100;
+    cOvB.style.clipPath = `inset(0 0 0 ${pct}%)`;
+    ovHandle.style.left = pct + '%';
+}
+
+function renderDiffMode() {
+    const w = cDiff.width, h = cDiff.height;
+    if (!_tA) _tA = document.createElement('canvas');
+    if (!_tB) _tB = document.createElement('canvas');
+    if (_tA.width !== w || _tA.height !== h) { _tA.width = w; _tA.height = h; }
+    if (_tB.width !== w || _tB.height !== h) { _tB.width = w; _tB.height = h; }
+    _tA.getContext('2d').drawImage(vidA, 0, 0, w, h);
+    _tB.getContext('2d').drawImage(vidB, 0, 0, w, h);
+    const a = _tA.getContext('2d').getImageData(0, 0, w, h).data;
+    const b = _tB.getContext('2d').getImageData(0, 0, w, h).data;
+    const ctx = cDiff.getContext('2d');
+    const out = ctx.createImageData(w, h);
+    const d = out.data, mul = diffMult;
+    for (let i = 0, len = a.length; i < len; i += 4) {
+        d[i]     = Math.min(255, Math.abs(a[i]   - b[i])   * mul);
+        d[i + 1] = Math.min(255, Math.abs(a[i+1] - b[i+1]) * mul);
+        d[i + 2] = Math.min(255, Math.abs(a[i+2] - b[i+2]) * mul);
+        d[i + 3] = 255;
+    }
+    ctx.putImageData(out, 0, 0);
+}
+
+// Render comparison to an arbitrary canvas (for export / screenshot)
+function renderToCanvas(ctx, w, h) {
+    if (mode === 'sideBySide') {
+        const gap = 4;
+        const pw = Math.floor((w - gap) / 2);
+        ctx.fillStyle = '#30363d';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(vidA, 0, 0, pw, h);
+        ctx.drawImage(vidB, pw + gap, 0, w - pw - gap, h);
+    } else if (mode === 'overlay') {
+        const sx = Math.floor(w * ovPos);
+        ctx.drawImage(vidA, 0, 0, w, h);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(sx, 0, w - sx, h); ctx.clip();
+        ctx.drawImage(vidB, 0, 0, w, h);
+        ctx.restore();
+        ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, h); ctx.stroke();
+    } else {
+        // Diff
+        const tA2 = document.createElement('canvas');
+        const tB2 = document.createElement('canvas');
+        tA2.width = w; tA2.height = h;
+        tB2.width = w; tB2.height = h;
+        tA2.getContext('2d').drawImage(vidA, 0, 0, w, h);
+        tB2.getContext('2d').drawImage(vidB, 0, 0, w, h);
+        const a = tA2.getContext('2d').getImageData(0, 0, w, h).data;
+        const b = tB2.getContext('2d').getImageData(0, 0, w, h).data;
+        const out = ctx.createImageData(w, h);
+        const d = out.data, mul = diffMult;
+        for (let i = 0; i < a.length; i += 4) {
+            d[i]     = Math.min(255, Math.abs(a[i]   - b[i])   * mul);
+            d[i + 1] = Math.min(255, Math.abs(a[i+1] - b[i+1]) * mul);
+            d[i + 2] = Math.min(255, Math.abs(a[i+2] - b[i+2]) * mul);
+            d[i + 3] = 255;
+        }
+        ctx.putImageData(out, 0, 0);
+    }
+}
+
+// ======================== Mode ========================
+function setMode(m) {
+    mode = m;
+    document.querySelectorAll('#modeTabs button').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === m));
+    $('vSbs').classList.toggle('active', m === 'sideBySide');
+    $('vOv').classList.toggle('active', m === 'overlay');
+    $('vDiff').classList.toggle('active', m === 'diff');
+    $('diffSettings').classList.toggle('visible', m === 'diff');
+    if (vidA && vidB) render();
+}
+document.querySelectorAll('#modeTabs button').forEach(b =>
+    b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+// ======================== Overlay Drag ========================
+let ovDrag = false;
+function ovMove(x) {
+    if (!ovDrag) return;
+    const r = ovWrap.getBoundingClientRect();
+    ovPos = Math.max(0, Math.min(1, (x - r.left) / r.width));
+    applyOvClip();
+}
+ovHandle.addEventListener('mousedown', e => { e.preventDefault(); ovDrag = true; });
+ovWrap.addEventListener('mousedown', e => {
+    if (e.target === ovHandle) return;
+    ovDrag = true; ovMove(e.clientX);
+});
+document.addEventListener('mousemove', e => ovMove(e.clientX));
+document.addEventListener('mouseup', () => { ovDrag = false; });
+ovHandle.addEventListener('touchstart', e => { e.preventDefault(); ovDrag = true; });
+ovWrap.addEventListener('touchstart', e => {
+    if (e.target === ovHandle) return;
+    ovDrag = true; ovMove(e.touches[0].clientX);
+});
+document.addEventListener('touchmove', e => { if (ovDrag) ovMove(e.touches[0].clientX); });
+document.addEventListener('touchend', () => { ovDrag = false; });
+
+// ======================== Playback ========================
+function togglePlay() {
+    if (exporting) return;
+    if (playing) stopPlay(); else startPlay();
+}
+
+function startPlay() {
+    playing = true;
+    $('btnPlay').innerHTML = '&#9646;&#9646; 暫停';
+    vidA.currentTime = trimA.start + frame / fps;
+    vidB.currentTime = trimB.start + frame / fps;
+    vidA.play(); vidB.play();
+    playLoop();
+}
+
+function stopPlay() {
+    playing = false;
+    $('btnPlay').innerHTML = '&#9654; 播放';
+    vidA.pause(); vidB.pause();
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    frame = Math.round((vidA.currentTime - trimA.start) * fps);
+    frame = Math.max(0, Math.min(frame, total - 1));
+    seekTo(frame);
+}
+
+function playLoop() {
+    if (!playing) return;
+    // Sync B to A (accounting for different trim offsets)
+    const expectedBTime = trimB.start + (vidA.currentTime - trimA.start);
+    if (Math.abs(vidB.currentTime - expectedBTime) > 0.04) {
+        vidB.currentTime = expectedBTime;
+    }
+    render();
+    frame = Math.round((vidA.currentTime - trimA.start) * fps);
+    frame = Math.max(0, Math.min(frame, total - 1));
+    frameSlider.value = frame;
+    $('inpGoto').value = frame;
+    updateInfo();
+    if (frame >= total - 1) { stopPlay(); return; }
+    rafId = requestAnimationFrame(playLoop);
+}
+
+// ======================== Controls ========================
+$('btnPrev').addEventListener('click', () => seekTo(frame - 1));
+$('btnNext').addEventListener('click', () => seekTo(frame + 1));
+$('btnPrevX').addEventListener('click', () => seekTo(frame - 10));
+$('btnNextX').addEventListener('click', () => seekTo(frame + 10));
+$('btnPlay').addEventListener('click', togglePlay);
+frameSlider.addEventListener('input', () => seekTo(parseInt(frameSlider.value)));
+
+$('selFps').addEventListener('change', e => {
+    fps = parseFloat(e.target.value);
+    if (vidA && vidB) { recalcRange(); seekTo(Math.min(frame, total - 1)); }
+});
+$('inpGoto').addEventListener('change', e => {
+    const v = parseInt(e.target.value);
+    if (!isNaN(v)) seekTo(v);
+});
+$('diffMult').addEventListener('input', e => {
+    diffMult = parseInt(e.target.value);
+    $('diffMultVal').textContent = diffMult + 'x';
+    if (mode === 'diff' && vidA && vidB) render();
+});
+
+// Screenshot
+$('btnSave').addEventListener('click', () => {
+    const { w, h } = getExportDims();
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    renderToCanvas(c.getContext('2d'), w, h);
+    const a = document.createElement('a');
+    a.download = `compare_frame_${frame}.png`;
+    a.href = c.toDataURL('image/png');
+    a.click();
+});
+
+// ======================== Export MP4 ========================
+function getExportDims() {
+    const wA = vidA.videoWidth, hA = vidA.videoHeight;
+    const wB = vidB.videoWidth, hB = vidB.videoHeight;
+    let w, h;
+    if (mode === 'sideBySide') {
+        w = wA + 4 + wB;
+        h = Math.max(hA, hB);
+    } else {
+        w = wA; h = hA;
+    }
+    const MAX = 3840;
+    if (w > MAX || h > MAX) {
+        const sc = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * sc);
+        h = Math.round(h * sc);
+    }
+    // H.264 requires even dimensions
+    w = Math.ceil(w / 2) * 2;
+    h = Math.ceil(h / 2) * 2;
+    return { w, h };
+}
+
+$('btnExport').addEventListener('click', startExport);
+$('btnCancelExport').addEventListener('click', () => { exportCancel = true; });
+
+async function startExport() {
+    if (exporting || !vidA || !vidB) return;
+    if (playing) stopPlay();
+
+    // Check browser support
+    if (typeof VideoEncoder === 'undefined') {
+        alert('您的瀏覽器不支援 VideoEncoder API。\n請使用 Chrome 94+ 或 Edge 94+。');
+        return;
+    }
+
+    exporting = true;
+    exportCancel = false;
+    $('exportOverlay').classList.add('visible');
+    $('exportProgress').style.width = '0%';
+    $('exportStatus').textContent = '載入 MP4 編碼器...';
+
+    try {
+        // Load mp4-muxer from CDN
+        let MuxerLib;
+        try {
+            MuxerLib = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5/+esm');
+        } catch (e) {
+            throw new Error(
+                '無法載入 MP4 編碼器。\n' +
+                '請確認有網路連線。若從 file:// 開啟，請改用本機伺服器:\n' +
+                'python -m http.server 8000'
+            );
+        }
+
+        const { Muxer, ArrayBufferTarget } = MuxerLib;
+        const { w, h } = getExportDims();
+
+        // Export canvas
+        const ec = document.createElement('canvas');
+        ec.width = w; ec.height = h;
+        const ectx = ec.getContext('2d');
+
+        // Muxer
+        const target = new ArrayBufferTarget();
+        const muxer = new Muxer({
+            target,
+            video: { codec: 'avc', width: w, height: h },
+            fastStart: 'in-memory',
+        });
+
+        // Encoder
+        let encoderError = null;
+        const encoder = new VideoEncoder({
+            output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+            error: e => { encoderError = e; },
+        });
+
+        // Find supported codec config
+        // Level must match resolution: 5.1 for up to 4K, 4.0 for ~2K, 3.1 for 720p
+        const bitrate = Math.max(4_000_000, Math.min(20_000_000, w * h * 5));
+        const codecs = [
+            'avc1.640033', // High Profile, Level 5.1 (up to 4K)
+            'avc1.4d0033', // Main Profile, Level 5.1
+            'avc1.640032', // High Profile, Level 5.0
+            'avc1.640028', // High Profile, Level 4.0
+        ];
+        let cfg = null;
+        for (const accel of ['no-preference', 'prefer-software']) {
+            for (const c of codecs) {
+                const test = {
+                    codec: c, width: w, height: h,
+                    bitrate, framerate: fps,
+                    hardwareAcceleration: accel,
+                    latencyMode: 'quality',
+                };
+                try {
+                    const sup = await VideoEncoder.isConfigSupported(test);
+                    if (sup.supported) { cfg = test; break; }
+                } catch (e) { /* try next */ }
+            }
+            if (cfg) break;
+        }
+        if (!cfg) throw new Error(
+            `找不到支援 ${w}x${h} 的 H.264 編碼設定。\n` +
+            '請嘗試切換到「滑動比較」或「差異比較」模式（較小解析度）再匯出。'
+        );
+        encoder.configure(cfg);
+
+        $('exportStatus').textContent = `編碼中... 0/${total} 幀 (${w}x${h})`;
+
+        // Encode each frame
+        for (let f = 0; f < total; f++) {
+            if (exportCancel) break;
+            if (encoderError) throw encoderError;
+
+            // Seek both videos with trim offsets
+            const tA = trimA.start + f / fps;
+            const tB = trimB.start + f / fps;
+            await Promise.all([seekVid(vidA, tA), seekVid(vidB, tB)]);
+
+            // Render to export canvas
+            renderToCanvas(ectx, w, h);
+
+            // Create VideoFrame and encode
+            const vf = new VideoFrame(ec, {
+                timestamp: Math.round(f * 1_000_000 / fps),
+                duration: Math.round(1_000_000 / fps),
+            });
+            const keyFrame = f % Math.round(fps) === 0;
+            encoder.encode(vf, { keyFrame });
+            vf.close();
+
+            // Backpressure: wait if queue is building up
+            while (encoder.encodeQueueSize > 10) {
+                await new Promise(r => setTimeout(r, 5));
+            }
+
+            // Update progress
+            const pct = (f + 1) / total * 100;
+            $('exportProgress').style.width = pct + '%';
+            $('exportStatus').textContent = `編碼中... ${f + 1}/${total} 幀 (${pct.toFixed(1)}%)`;
+
+            // Yield to UI thread
+            if (f % 3 === 0) await new Promise(r => setTimeout(r, 0));
+        }
+
+        if (!exportCancel) {
+            $('exportStatus').textContent = '正在封裝 MP4...';
+            await encoder.flush();
+            encoder.close();
+            muxer.finalize();
+
+            // Download
+            const blob = new Blob([target.buffer], { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `compare_${mode}_${total}f.mp4`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+            $('exportStatus').textContent = '匯出完成！';
+            await new Promise(r => setTimeout(r, 800));
+        } else {
+            encoder.close();
+        }
+
+    } catch (e) {
+        console.error('Export error:', e);
+        alert('匯出失敗：\n' + e.message);
+    }
+
+    exporting = false;
+    $('exportOverlay').classList.remove('visible');
+    seekTo(frame); // Restore display
+}
+
+// ======================== Keyboard ========================
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (!vidA || !vidB || exporting) return;
+    switch (e.key) {
+        case 'ArrowLeft':  e.preventDefault(); if (playing) stopPlay(); seekTo(frame - 1); break;
+        case 'ArrowRight': e.preventDefault(); if (playing) stopPlay(); seekTo(frame + 1); break;
+        case ' ':          e.preventDefault(); togglePlay(); break;
+        case '1': setMode('sideBySide'); break;
+        case '2': setMode('overlay'); break;
+        case '3': setMode('diff'); break;
+        case 'Home': e.preventDefault(); seekTo(0); break;
+        case 'End':  e.preventDefault(); seekTo(total - 1); break;
+    }
+});
+
+// ======================== Fullscreen ========================
+document.querySelectorAll('.compare-view canvas').forEach(c => {
+    c.addEventListener('dblclick', () => {
+        if (c.requestFullscreen) c.requestFullscreen();
+        else if (c.webkitRequestFullscreen) c.webkitRequestFullscreen();
+    });
+});
+
+// ======================== Init ========================
+initDrop($('dropA'), $('fileA'), 'A');
+initDrop($('dropB'), $('fileB'), 'B');
+applyOvClip();
+</script>
+</body>
+</html>
