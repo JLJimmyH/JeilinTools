@@ -292,6 +292,160 @@
   }
 
   #file-input { display: none; }
+
+  /* ── Compare Mode ────────────────────────────────────────────── */
+  /* Tab bar */
+  .cmp-tab-bar {
+    display: flex; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .cmp-tab {
+    flex: 1; padding: 8px 0; border: none; background: transparent;
+    color: var(--fg-muted); font-size: 12px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all var(--duration) var(--ease-out);
+  }
+  .cmp-tab:hover { color: var(--fg); background: var(--surface-hover); }
+  .cmp-tab.active { color: var(--accent-bright); border-bottom-color: var(--accent-bright); }
+
+  /* Mode button group */
+  .cmp-mode-group { display: flex; gap: 0; }
+  .cmp-mode-group .cmp-mode-btn { border-radius: 0; border-right-width: 0; }
+  .cmp-mode-group .cmp-mode-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .cmp-mode-group .cmp-mode-btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-right-width: 1px; }
+  .cmp-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cmp-mode-btn.active:hover { background: var(--accent-bright); }
+
+  /* Diff canvas */
+  #compare-canvas-diff { position: absolute; transform-origin: 0 0; image-rendering: pixelated; pointer-events: none; }
+
+  /* Side-by-side (dual) view */
+  #compare-dual-view {
+    display: none; position: absolute; inset: 0; overflow: hidden;
+  }
+  #compare-dual-view.active { display: flex; }
+  .cmp-dual-panel {
+    flex: 1; position: relative; overflow: hidden;
+  }
+  .cmp-dual-panel canvas {
+    position: absolute; transform-origin: 0 0; image-rendering: pixelated;
+  }
+  .cmp-dual-sep {
+    width: 2px; flex-shrink: 0; background: var(--border); z-index: 2;
+  }
+  .cmp-dual-label {
+    position: absolute; top: 8px; left: 8px;
+    padding: 3px 10px;
+    background: var(--bg-tooltip); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 11px; font-weight: 600; color: var(--fg-muted);
+    pointer-events: none; z-index: 5;
+    box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
+  }
+  #compare-overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: var(--bg-base); flex-direction: column;
+  }
+  #compare-overlay.active { display: flex; }
+
+  .compare-toolbar {
+    background: var(--bg-elevated); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border); min-height: 48px;
+    position: relative; z-index: 3; box-shadow: var(--toolbar-shadow);
+  }
+  .compare-toolbar h2 {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+    background: linear-gradient(180deg, var(--title-from) 20%, var(--title-to) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    white-space: nowrap;
+  }
+  .compare-toolbar .info { font-size: 12px; color: var(--fg-muted); margin-left: auto; white-space: nowrap; }
+
+  .compare-body { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+  /* Loading panels */
+  .compare-load-panel {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 2px dashed var(--dropzone-border); margin: 16px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--dropzone-bg-from) 0%, var(--dropzone-bg-to) 100%);
+    cursor: pointer; transition: border-color var(--duration) var(--ease-out);
+    position: relative;
+  }
+  .compare-load-panel.has-image {
+    border-style: solid; border-color: var(--accent); cursor: default;
+    background: transparent; margin: 0; border: none; border-radius: 0;
+  }
+  .compare-load-panel:hover:not(.has-image), .compare-load-panel.dragover {
+    border-color: var(--accent);
+    background: rgba(94, 106, 210, 0.04);
+  }
+  .compare-load-panel .load-placeholder { text-align: center; pointer-events: none; }
+  .compare-load-panel .load-placeholder .icon { font-size: 48px; opacity: var(--icon-opacity); filter: var(--icon-filter); }
+  .compare-load-panel .load-placeholder p { font-size: 16px; font-weight: 500; margin-top: 8px; color: var(--fg-muted); }
+  .compare-load-panel .load-placeholder .hint { font-size: 12px; color: var(--fg-dim); margin-top: 6px; }
+  .compare-load-separator { width: 1px; background: var(--border); flex-shrink: 0; margin: 16px 0; }
+
+  /* Split view */
+  #compare-view {
+    display: none; position: absolute; inset: 0; overflow: hidden;
+  }
+  #compare-view.active { display: block; }
+  #compare-canvas-wrap {
+    position: absolute; inset: 0; overflow: hidden;
+  }
+  #compare-canvas-wrap canvas {
+    position: absolute; transform-origin: 0 0; image-rendering: pixelated;
+  }
+  #compare-canvas-a, #compare-canvas-b { pointer-events: none; }
+  #compare-clip-b {
+    position: absolute; top: 0; bottom: 0; right: 0; overflow: hidden; pointer-events: none;
+  }
+
+  /* Divider */
+  #compare-divider {
+    position: absolute; top: 0; bottom: 0; width: 3px;
+    background: var(--accent-bright); cursor: col-resize; z-index: 10;
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  #compare-divider::before {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-bright); border: 2px solid #fff;
+    box-shadow: 0 0 12px var(--accent-glow-strong);
+  }
+  #compare-divider::after {
+    content: '\u25C0\u25B6'; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px; color: #fff; letter-spacing: -2px; z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Compare labels */
+  .compare-label {
+    position: absolute; top: 12px; padding: 4px 14px;
+    background: var(--bg-tooltip); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600; color: var(--fg-muted);
+    pointer-events: none; z-index: 5;
+    box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
+  }
+  .compare-label-a { left: 12px; }
+  .compare-label-b { right: 12px; }
+
+  /* Compare pixel info */
+  #compare-pixel-info {
+    position: fixed; bottom: 8px; left: 8px;
+    background: var(--bg-tooltip); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    font-size: 12px; font-family: 'Cascadia Code', 'SF Mono', Consolas, monospace;
+    color: var(--fg-muted); pointer-events: none; display: none; z-index: 110;
+    box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
+    line-height: 1.7; white-space: pre;
+  }
 </style>
 </head>
 <body>
@@ -310,6 +464,7 @@
   <div class="sep"></div>
   <button class="ctrl-btn" id="btn-fit">適合視窗</button>
   <button class="ctrl-btn" id="btn-100">1:1</button>
+  <button class="ctrl-btn" id="btn-compare">比較</button>
   <button class="ctrl-btn" id="btn-theme" title="切換日間/夜間模式" aria-label="切換日間/夜間模式">&#x1F319;</button>
   <span class="info" id="info"></span>
 </div>
@@ -375,6 +530,8 @@
             <option value="UYVY">UYVY</option>
             <option value="YUV444P">YUV444P</option>
             <option value="Y_ONLY">Y Only (灰階)</option>
+            <option value="Y_PLANE">YUV420 Y Plane</option>
+            <option value="UV_PLANE">YUV420 UV Plane</option>
           </select></div>
           <div class="panel-row"><span class="label-text">位元深度</span><select class="ctrl-select" id="yuv-bitdepth">
             <option value="8" selected>8 bit</option>
@@ -409,7 +566,7 @@
     <div class="placeholder">
       <div class="icon">&#x1F4F7;</div>
       <p>拖曳檔案到此處</p>
-      <div class="hint">支援 JR2 / ARGB / JL / YUV (nv12/nv21/i420/422/444…) / RAW / PNG</div>
+      <div class="hint">支援 JR2 / ARGB / JL / YUV (nv12/nv21/i420/422/444…) / RAW / PNG / JPG / BMP</div>
     </div>
     <div id="canvas-wrap">
       <canvas id="canvas"></canvas>
@@ -418,7 +575,163 @@
 </div>
 
 <div id="pixel-info"></div>
-<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW">
+
+<!-- ── Compare Mode Overlay ──────────────────────────────────── -->
+<div id="compare-overlay">
+  <div class="compare-toolbar">
+    <h2>Compare</h2>
+    <div class="sep"></div>
+    <button class="ctrl-btn" id="cmp-btn-open-a">開啟圖 A</button>
+    <button class="ctrl-btn" id="cmp-btn-open-b">開啟圖 B</button>
+    <div class="sep"></div>
+    <div class="cmp-mode-group">
+      <button class="ctrl-btn cmp-mode-btn" data-mode="side">Side</button>
+      <button class="ctrl-btn cmp-mode-btn active" data-mode="split">Split</button>
+      <button class="ctrl-btn cmp-mode-btn" data-mode="diff">Diff</button>
+    </div>
+    <select class="ctrl-select" id="cmp-diff-gain" style="display:none">
+      <option value="1">1x</option>
+      <option value="5" selected>5x</option>
+      <option value="10">10x</option>
+      <option value="25">25x</option>
+    </select>
+    <div class="sep"></div>
+    <button class="ctrl-btn" id="cmp-btn-fit">適合視窗</button>
+    <button class="ctrl-btn" id="cmp-btn-100">1:1</button>
+    <button class="ctrl-btn" id="cmp-btn-swap">A/B 互換</button>
+    <div class="sep"></div>
+    <button class="ctrl-btn" id="cmp-btn-close">返回檢視器</button>
+    <span class="info" id="cmp-info"></span>
+  </div>
+  <div class="compare-body" id="compare-body">
+    <!-- Sidebar with tabs -->
+    <aside class="sidebar" id="cmp-sidebar">
+      <div class="cmp-tab-bar">
+        <button class="cmp-tab active" data-tab="a">圖 A</button>
+        <button class="cmp-tab" data-tab="b">圖 B</button>
+      </div>
+      <div class="sidebar-content">
+        <div class="panel-section" id="cmp-section-info">
+          <div class="panel-title">格式資訊</div>
+          <div class="panel-body">
+            <div class="format-text" id="cmp-format-detail" style="white-space:pre-line">尚未載入檔案</div>
+          </div>
+        </div>
+        <div class="panel-section" id="cmp-section-resolution" style="display:none">
+          <div class="panel-title">解析度</div>
+          <div class="panel-body">
+            <div class="panel-row"><span class="label-text">寬度</span><input type="number" class="ctrl-input" id="cmp-input-width" min="1" max="9999" placeholder="128"></div>
+            <div class="panel-row"><span class="label-text">高度</span><input type="number" class="ctrl-input" id="cmp-input-height" min="1" max="9999" placeholder="128"></div>
+          </div>
+        </div>
+        <div class="panel-section" id="cmp-section-jr2" style="display:none">
+          <div class="panel-title">影像調整</div>
+          <div class="panel-body">
+            <div class="panel-row"><span class="label-text">模式</span><select class="ctrl-select" id="cmp-mode">
+              <option value="raw">Raw 灰階</option>
+              <option value="binning" selected>2×2 Binning</option>
+              <option value="stretch">自動拉伸</option>
+              <option value="binning-stretch">Binning + 拉伸</option>
+            </select></div>
+            <div class="panel-row"><span class="label-text">亮度</span><input type="range" class="ctrl-range" id="cmp-brightness" min="-128" max="128" value="0"><span class="val" id="cmp-bval">0</span></div>
+            <div class="panel-row"><span class="label-text">對比</span><input type="range" class="ctrl-range" id="cmp-contrast" min="0.2" max="5" value="1" step="0.1"><span class="val" id="cmp-cval">1.0</span></div>
+            <div class="panel-row"><span class="label-text">Gamma</span><input type="range" class="ctrl-range" id="cmp-gamma" min="0.2" max="4" value="1" step="0.1"><span class="val" id="cmp-gval">1.0</span></div>
+            <button class="ctrl-btn" id="cmp-btn-jr2-reset">重設</button>
+          </div>
+        </div>
+        <div class="panel-section" id="cmp-section-yuv" style="display:none">
+          <div class="panel-title">YUV 參數</div>
+          <div class="panel-body">
+            <div class="panel-row"><span class="label-text">格式</span><select class="ctrl-select" id="cmp-yuv-format">
+              <option value="NV12">NV12</option><option value="NV21">NV21</option>
+              <option value="I420">I420 (YUV420P)</option><option value="YV12">YV12</option>
+              <option value="YUV422P">YUV422P</option><option value="YUYV">YUYV (YUY2)</option>
+              <option value="UYVY">UYVY</option><option value="YUV444P">YUV444P</option>
+              <option value="Y_ONLY">Y Only (灰階)</option>
+              <option value="Y_PLANE">YUV420 Y Plane</option>
+              <option value="UV_PLANE">YUV420 UV Plane</option>
+            </select></div>
+            <div class="panel-row"><span class="label-text">位元深度</span><select class="ctrl-select" id="cmp-yuv-bitdepth">
+              <option value="8" selected>8 bit</option><option value="10">10 bit</option>
+            </select></div>
+            <div class="panel-row"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--fg-muted)"><input type="checkbox" id="cmp-yuv-uv-signed"> UV Signed</label></div>
+            <button class="ctrl-btn" id="cmp-btn-yuv-apply">套用</button>
+          </div>
+        </div>
+        <div class="panel-section" id="cmp-section-raw" style="display:none">
+          <div class="panel-title">RAW 像素格式</div>
+          <div class="panel-body">
+            <div class="panel-row"><span class="label-text">格式</span><select class="ctrl-select" id="cmp-raw-pixfmt">
+              <option value="ARGB8888">ARGB8888</option><option value="ARGB4444">ARGB4444</option>
+              <option value="ARGB2222">ARGB2222</option><option value="ARGB1555">ARGB1555</option>
+              <option value="RGB565">RGB565</option><option value="RGB888">RGB888</option>
+              <option value="JR2">JR2 (灰階)</option>
+            </select></div>
+            <button class="ctrl-btn" id="cmp-btn-raw-apply">套用</button>
+          </div>
+        </div>
+        <div class="panel-section" id="cmp-section-background" style="display:none">
+          <div class="panel-title">背景</div>
+          <div class="panel-body">
+            <div class="panel-row">
+              <select class="ctrl-select" id="cmp-bg-style">
+                <option value="checker" selected>黑白方格</option>
+                <option value="white">白色</option>
+                <option value="black">黑色</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <!-- Drop panels -->
+    <div class="compare-load-panel" id="cmp-drop-a">
+      <div class="load-placeholder">
+        <div class="icon">&#x1F5BC;</div>
+        <p>拖曳或點擊載入圖片 A</p>
+        <div class="hint">支援 JPG / BMP / PNG 及所有 JL 格式</div>
+      </div>
+    </div>
+    <div class="compare-load-separator"></div>
+    <div class="compare-load-panel" id="cmp-drop-b">
+      <div class="load-placeholder">
+        <div class="icon">&#x1F5BC;</div>
+        <p>拖曳或點擊載入圖片 B</p>
+        <div class="hint">支援 JPG / BMP / PNG 及所有 JL 格式</div>
+      </div>
+    </div>
+    <!-- Split / Diff view -->
+    <div id="compare-view">
+      <div id="compare-canvas-wrap">
+        <canvas id="compare-canvas-a"></canvas>
+        <div id="compare-clip-b">
+          <canvas id="compare-canvas-b"></canvas>
+        </div>
+        <canvas id="compare-canvas-diff" style="display:none"></canvas>
+      </div>
+      <div id="compare-divider"></div>
+      <div class="compare-label compare-label-a" id="cmp-label-a">A</div>
+      <div class="compare-label compare-label-b" id="cmp-label-b">B</div>
+    </div>
+    <!-- Side-by-side (dual) view -->
+    <div id="compare-dual-view">
+      <div class="cmp-dual-panel" id="cmp-dual-panel-a">
+        <canvas id="cmp-dual-canvas-a"></canvas>
+        <div class="cmp-dual-label" id="cmp-dual-label-a">A</div>
+      </div>
+      <div class="cmp-dual-sep"></div>
+      <div class="cmp-dual-panel" id="cmp-dual-panel-b">
+        <canvas id="cmp-dual-canvas-b"></canvas>
+        <div class="cmp-dual-label" id="cmp-dual-label-b">B</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="compare-pixel-info"></div>
+
+<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW">
+<input type="file" id="cmp-file-a" accept=".jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.png,.PNG,.jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW" style="display:none">
+<input type="file" id="cmp-file-b" accept=".jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.png,.PNG,.jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW" style="display:none">
 
 <script>
 (() => {
@@ -488,7 +801,7 @@
     fileName = file.name;
     const ext = file.name.toLowerCase();
 
-    if (ext.endsWith('.png')) {
+    if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.bmp')) {
       currentFormat = 'png';
       handlePNG(file);
       return;
@@ -615,7 +928,8 @@
       const id = tmpCtx.getImageData(0, 0, argbWidth, argbHeight);
       argbImageData = new Uint8ClampedArray(id.data);
 
-      infoEl.textContent = `${fileName} | PNG | ${argbWidth}×${argbHeight}`;
+      const fext = fileName.split('.').pop().toUpperCase();
+      infoEl.textContent = `${fileName} | ${fext} | ${argbWidth}×${argbHeight}`;
       showCanvas();
       renderARGB();
       updateUIForFormat();
@@ -1000,10 +1314,25 @@
     }
     const bps = bitDepth === 10 ? 2 : 1; // bytes per sample
 
-    if (fmt === 'Y_ONLY') {
+    if (fmt === 'Y_ONLY' || fmt === 'Y_PLANE') {
       for (let i = 0; i < w * h; i++) {
         const y = getSample(src, i * bps);
         rgba[i*4] = y; rgba[i*4+1] = y; rgba[i*4+2] = y; rgba[i*4+3] = 255;
+      }
+    } else if (fmt === 'UV_PLANE') {
+      // UV plane of YUV420: interleaved U,V pairs, 以設定的 w×h 為顯示尺寸
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+          const off = (row * w + col) * 2 * bps;
+          const u = fixUV(getSample(src, off));
+          const v = fixUV(getSample(src, off + bps));
+          const d = u - 128, e = v - 128;
+          const idx = (row * w + col) * 4;
+          rgba[idx]     = Math.max(0, Math.min(255, (128 + 1.402 * e) | 0));
+          rgba[idx + 1] = Math.max(0, Math.min(255, (128 - 0.344 * d - 0.714 * e) | 0));
+          rgba[idx + 2] = Math.max(0, Math.min(255, (128 + 1.772 * d) | 0));
+          rgba[idx + 3] = 255;
+        }
       }
     } else if (fmt === 'NV12' || fmt === 'NV21') {
       const yPlane = 0;
@@ -1330,7 +1659,8 @@
       if (fi.iconWidth) text += `\nIcon: ${fi.iconWidth}×${fi.iconHeight}`;
       formatDetail.textContent = text;
     } else if (isPNG) {
-      formatDetail.textContent = `格式: PNG\n解析度: ${argbWidth}×${argbHeight}`;
+      const fext = fileName.split('.').pop().toUpperCase();
+      formatDetail.textContent = `格式: ${fext}\n解析度: ${argbWidth}×${argbHeight}`;
     }
     formatDetail.style.whiteSpace = 'pre-line';
   }
@@ -1519,6 +1849,1059 @@
   });
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
     if (!localStorage.getItem('jl-viewer-theme')) applyTheme(e.matches ? 'light' : 'dark');
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  COMPARE MODE
+  // ══════════════════════════════════════════════════════════════
+
+  const cmpOverlay = document.getElementById('compare-overlay');
+  const cmpBody = document.getElementById('compare-body');
+  const cmpView = document.getElementById('compare-view');
+  const cmpCanvasWrap = document.getElementById('compare-canvas-wrap');
+  const cmpCanvasA = document.getElementById('compare-canvas-a');
+  const cmpCanvasB = document.getElementById('compare-canvas-b');
+  const cmpCtxA = cmpCanvasA.getContext('2d');
+  const cmpCtxB = cmpCanvasB.getContext('2d');
+  const cmpCanvasDiff = document.getElementById('compare-canvas-diff');
+  const cmpCtxDiff = cmpCanvasDiff.getContext('2d');
+  const cmpClipB = document.getElementById('compare-clip-b');
+  const cmpDivider = document.getElementById('compare-divider');
+  const cmpPixelInfo = document.getElementById('compare-pixel-info');
+  const cmpInfo = document.getElementById('cmp-info');
+  const cmpLabelA = document.getElementById('cmp-label-a');
+  const cmpLabelB = document.getElementById('cmp-label-b');
+  const cmpDropA = document.getElementById('cmp-drop-a');
+  const cmpDropB = document.getElementById('cmp-drop-b');
+  const cmpFileA = document.getElementById('cmp-file-a');
+  const cmpFileB = document.getElementById('cmp-file-b');
+
+  // Sidebar DOM refs
+  const cmpFormatDetail = document.getElementById('cmp-format-detail');
+  const cmpInputWidth = document.getElementById('cmp-input-width');
+  const cmpInputHeight = document.getElementById('cmp-input-height');
+  const cmpModeSelect = document.getElementById('cmp-mode');
+  const cmpBrightnessInput = document.getElementById('cmp-brightness');
+  const cmpContrastInput = document.getElementById('cmp-contrast');
+  const cmpGammaInput = document.getElementById('cmp-gamma');
+  const cmpBval = document.getElementById('cmp-bval');
+  const cmpCval = document.getElementById('cmp-cval');
+  const cmpGval = document.getElementById('cmp-gval');
+  const cmpYuvFormatSelect = document.getElementById('cmp-yuv-format');
+  const cmpYuvBitdepthSelect = document.getElementById('cmp-yuv-bitdepth');
+  const cmpYuvUvSignedCheckbox = document.getElementById('cmp-yuv-uv-signed');
+  const cmpRawPixfmtSelect = document.getElementById('cmp-raw-pixfmt');
+  const cmpBgStyleSelect = document.getElementById('cmp-bg-style');
+  const cmpDiffGainSelect = document.getElementById('cmp-diff-gain');
+
+  // Dual view DOM refs
+  const cmpDualView = document.getElementById('compare-dual-view');
+  const cmpDualPanelA = document.getElementById('cmp-dual-panel-a');
+  const cmpDualPanelB = document.getElementById('cmp-dual-panel-b');
+  const cmpDualCanvasA = document.getElementById('cmp-dual-canvas-a');
+  const cmpDualCanvasB = document.getElementById('cmp-dual-canvas-b');
+  const cmpDualCtxA = cmpDualCanvasA.getContext('2d');
+  const cmpDualCtxB = cmpDualCanvasB.getContext('2d');
+  const cmpDualLabelA = document.getElementById('cmp-dual-label-a');
+  const cmpDualLabelB = document.getElementById('cmp-dual-label-b');
+
+  // Compare state
+  let cmpImgA = null; // { rgba, width, height, name, format, arrayBuffer, fileObj, params }
+  let cmpImgB = null;
+  let cmpScale = 1, cmpPanX = 0, cmpPanY = 0;
+  let cmpDragging = false, cmpDivDragging = false;
+  let cmpDragStartX, cmpDragStartY, cmpPanStartX, cmpPanStartY;
+  let cmpDividerX = 0.5;
+  let cmpViewMode = 'split'; // 'split' | 'diff'
+  let cmpActiveTab = 'a';
+
+  function cmpDefaultParams() {
+    return {
+      width: null, height: null,
+      jr2Mode: 'binning', jr2Brightness: 0, jr2Contrast: 1, jr2Gamma: 1,
+      yuvFormat: 'NV12', yuvBitDepth: 8, yuvUvSigned: false,
+      rawPixelFormat: 'ARGB8888', bgStyle: 'checker',
+    };
+  }
+
+  // ── Pure parse function for compare mode ─────────────────────
+
+  function detectFormat(fileName) {
+    const ext = fileName.toLowerCase();
+    if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.bmp')) return 'image';
+    if (ext.endsWith('.jr2')) return 'jr2';
+    if (isYUVExtension(ext)) return 'yuv';
+    if (ext.endsWith('.raw')) return 'raw';
+    const isJL = ext.endsWith(".jlargb8888") || ext.endsWith(".jlargb4444") ||
+                  ext.endsWith(".jlargb1555") || ext.endsWith(".jlargb2222") ||
+                  ext.endsWith(".jlargb8") || ext.endsWith(".jlargb4") || ext.endsWith(".jlargb2");
+    if (isJL) return 'jl';
+    return 'argb';
+  }
+
+  function renderJR2Pure(rawPixels, srcW, srcH, params) {
+    const mode = params.jr2Mode || 'binning';
+    const brightness = params.jr2Brightness || 0;
+    const contrast = params.jr2Contrast != null ? params.jr2Contrast : 1;
+    const gamma = params.jr2Gamma != null ? params.jr2Gamma : 1;
+    const useBinning = mode === 'binning' || mode === 'binning-stretch';
+    const useStretch = mode === 'stretch' || mode === 'binning-stretch';
+
+    let pixels, w, h;
+    if (useBinning) {
+      w = Math.floor(srcW / 2); h = Math.floor(srcH / 2);
+      pixels = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const sy = y * 2, sx = x * 2, idx = sy * srcW + sx;
+          pixels[y * w + x] = (rawPixels[idx] + rawPixels[idx+1] + rawPixels[idx+srcW] + rawPixels[idx+srcW+1]) / 4;
+        }
+      }
+    } else {
+      w = srcW; h = srcH;
+      pixels = new Float32Array(w * h);
+      for (let i = 0; i < w * h; i++) pixels[i] = rawPixels[i];
+    }
+
+    let stretchMin = 0, stretchScale = 1;
+    if (useStretch) {
+      const sorted = Float32Array.from(pixels).sort();
+      stretchMin = sorted[Math.floor(sorted.length * 0.01)];
+      const hi = sorted[Math.floor(sorted.length * 0.99)];
+      stretchScale = (hi > stretchMin) ? 255 / (hi - stretchMin) : 1;
+    }
+
+    const rgba = new Uint8ClampedArray(w * h * 4);
+    const invGamma = 1 / gamma;
+    for (let i = 0; i < w * h; i++) {
+      let v = pixels[i];
+      if (useStretch) v = (v - stretchMin) * stretchScale;
+      v = (v - 128) * contrast + 128 + brightness;
+      if (gamma !== 1) v = Math.pow(Math.max(0, v / 255), invGamma) * 255;
+      v = Math.max(0, Math.min(255, v)) | 0;
+      rgba[i*4] = v; rgba[i*4+1] = v; rgba[i*4+2] = v; rgba[i*4+3] = 255;
+    }
+    return { rgba, width: w, height: h };
+  }
+
+  function parseYUVPure(arrayBuffer, fileName, params) {
+    let w = params.width, h = params.height;
+    if (!w || !h) {
+      const dims = getDimensionsFromFileName(fileName);
+      if (dims) { w = dims.width; h = dims.height; }
+      else {
+        const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, 1);
+        if (guess) { w = guess.width; h = guess.height; }
+        else { w = 128; h = 128; }
+      }
+    }
+    const fmt = params.yuvFormat || 'NV12';
+    const bitDepth = params.yuvBitDepth || 8;
+    const uvSigned = !!params.yuvUvSigned;
+    const src = new Uint8Array(arrayBuffer);
+    const rgba = new Uint8ClampedArray(w * h * 4);
+
+    function fixUV(val) { return uvSigned ? (val ^ 0x80) : val; }
+    function yuvToRgb(y, u, v) {
+      u = fixUV(u); v = fixUV(v);
+      const c = y - 16, d = u - 128, e = v - 128;
+      return [
+        Math.max(0, Math.min(255, (298*c + 409*e + 128) >> 8)),
+        Math.max(0, Math.min(255, (298*c - 100*d - 208*e + 128) >> 8)),
+        Math.max(0, Math.min(255, (298*c + 516*d + 128) >> 8))
+      ];
+    }
+    const bps = bitDepth === 10 ? 2 : 1;
+    function getSample(data, offset) {
+      if (bitDepth === 10) {
+        if (offset + 1 >= data.length) return 0;
+        return ((data[offset] | (data[offset+1] << 8)) >> 2) & 0xFF;
+      }
+      return offset < data.length ? data[offset] : 0;
+    }
+
+    if (fmt === 'Y_ONLY' || fmt === 'Y_PLANE') {
+      for (let i = 0; i < w * h; i++) {
+        const y = getSample(src, i * bps);
+        rgba[i*4] = y; rgba[i*4+1] = y; rgba[i*4+2] = y; rgba[i*4+3] = 255;
+      }
+    } else if (fmt === 'UV_PLANE') {
+      for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+          const off = (row * w + col) * 2 * bps;
+          const u = fixUV(getSample(src, off));
+          const v = fixUV(getSample(src, off + bps));
+          const d = u - 128, e = v - 128;
+          const idx = (row * w + col) * 4;
+          rgba[idx]     = Math.max(0, Math.min(255, (128 + 1.402 * e) | 0));
+          rgba[idx + 1] = Math.max(0, Math.min(255, (128 - 0.344 * d - 0.714 * e) | 0));
+          rgba[idx + 2] = Math.max(0, Math.min(255, (128 + 1.772 * d) | 0));
+          rgba[idx + 3] = 255;
+        }
+      }
+    } else if (fmt === 'NV12' || fmt === 'NV21') {
+      const uvPlane = w * h * bps;
+      for (let row = 0; row < h; row++) for (let col = 0; col < w; col++) {
+        const y = getSample(src, (row * w + col) * bps);
+        const uvOff = uvPlane + (Math.floor(row/2) * w + Math.floor(col/2) * 2) * bps;
+        const u = getSample(src, fmt === 'NV12' ? uvOff : uvOff + bps);
+        const v = getSample(src, fmt === 'NV12' ? uvOff + bps : uvOff);
+        const [r, g, b] = yuvToRgb(y, u, v);
+        const idx = (row * w + col) * 4;
+        rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+      }
+    } else if (fmt === 'I420' || fmt === 'YV12') {
+      const plane1 = w * h * bps;
+      const plane2 = plane1 + Math.floor(w/2) * Math.floor(h/2) * bps;
+      const uPlane = fmt === 'I420' ? plane1 : plane2;
+      const vPlane = fmt === 'I420' ? plane2 : plane1;
+      const uvW = Math.floor(w / 2);
+      for (let row = 0; row < h; row++) for (let col = 0; col < w; col++) {
+        const y = getSample(src, (row * w + col) * bps);
+        const uvRow = Math.floor(row/2), uvCol = Math.floor(col/2);
+        const [r, g, b] = yuvToRgb(y, getSample(src, uPlane + (uvRow*uvW+uvCol)*bps), getSample(src, vPlane + (uvRow*uvW+uvCol)*bps));
+        const idx = (row * w + col) * 4;
+        rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+      }
+    } else if (fmt === 'YUV422P') {
+      const uPlane = w * h * bps, vPlane = uPlane + Math.floor(w/2) * h * bps;
+      const uvW = Math.floor(w / 2);
+      for (let row = 0; row < h; row++) for (let col = 0; col < w; col++) {
+        const y = getSample(src, (row * w + col) * bps);
+        const [r, g, b] = yuvToRgb(y, getSample(src, uPlane + (row*uvW+Math.floor(col/2))*bps), getSample(src, vPlane + (row*uvW+Math.floor(col/2))*bps));
+        const idx = (row * w + col) * 4;
+        rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+      }
+    } else if (fmt === 'YUYV') {
+      for (let row = 0; row < h; row++) for (let col = 0; col < w; col += 2) {
+        const base = (row * w + col) * 2 * bps;
+        const y0 = getSample(src, base), u = getSample(src, base+bps), y1 = getSample(src, base+2*bps), v = getSample(src, base+3*bps);
+        const [r0,g0,b0] = yuvToRgb(y0,u,v), [r1,g1,b1] = yuvToRgb(y1,u,v);
+        let idx = (row*w+col)*4;
+        rgba[idx]=r0; rgba[idx+1]=g0; rgba[idx+2]=b0; rgba[idx+3]=255;
+        if (col+1<w) { idx+=4; rgba[idx]=r1; rgba[idx+1]=g1; rgba[idx+2]=b1; rgba[idx+3]=255; }
+      }
+    } else if (fmt === 'UYVY') {
+      for (let row = 0; row < h; row++) for (let col = 0; col < w; col += 2) {
+        const base = (row * w + col) * 2 * bps;
+        const u = getSample(src, base), y0 = getSample(src, base+bps), v = getSample(src, base+2*bps), y1 = getSample(src, base+3*bps);
+        const [r0,g0,b0] = yuvToRgb(y0,u,v), [r1,g1,b1] = yuvToRgb(y1,u,v);
+        let idx = (row*w+col)*4;
+        rgba[idx]=r0; rgba[idx+1]=g0; rgba[idx+2]=b0; rgba[idx+3]=255;
+        if (col+1<w) { idx+=4; rgba[idx]=r1; rgba[idx+1]=g1; rgba[idx+2]=b1; rgba[idx+3]=255; }
+      }
+    } else if (fmt === 'YUV444P') {
+      const uPlane = w*h*bps, vPlane = uPlane + w*h*bps;
+      for (let i = 0; i < w*h; i++) {
+        const [r,g,b] = yuvToRgb(getSample(src,i*bps), getSample(src,uPlane+i*bps), getSample(src,vPlane+i*bps));
+        rgba[i*4]=r; rgba[i*4+1]=g; rgba[i*4+2]=b; rgba[i*4+3]=255;
+      }
+    }
+    return { rgba, width: w, height: h };
+  }
+
+  function parseRAWPure(arrayBuffer, fileName, params) {
+    let w = params.width, h = params.height;
+    const fmt = params.rawPixelFormat || 'ARGB8888';
+    if (!w || !h) {
+      const dims = getDimensionsFromFileName(fileName);
+      if (dims) { w = dims.width; h = dims.height; }
+      else {
+        const bppMap = { ARGB8888:4, ARGB4444:2, ARGB1555:2, ARGB2222:1, RGB565:2, RGB888:3, JR2:1 };
+        const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, bppMap[fmt] || 1);
+        if (guess) { w = guess.width; h = guess.height; }
+        else { w = 128; h = 128; }
+      }
+    }
+    const dv = new DataView(arrayBuffer);
+    const actual = arrayBuffer.byteLength;
+    const rgba = new Uint8ClampedArray(w * h * 4);
+
+    if (fmt === 'ARGB8888') {
+      for (let i = 0; i < w*h; i++) {
+        if (i*4+3<actual) { rgba[i*4]=dv.getUint8(i*4+2); rgba[i*4+1]=dv.getUint8(i*4+1); rgba[i*4+2]=dv.getUint8(i*4); rgba[i*4+3]=dv.getUint8(i*4+3); }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'ARGB4444') {
+      for (let i = 0; i < w*h; i++) {
+        if (i*2+1<actual) { const v=dv.getUint16(i*2,true); rgba[i*4]=((v>>8)&0xF)*255/15; rgba[i*4+1]=((v>>4)&0xF)*255/15; rgba[i*4+2]=(v&0xF)*255/15; rgba[i*4+3]=((v>>12)&0xF)*255/15; }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'ARGB2222') {
+      for (let i = 0; i < w*h; i++) {
+        if (i<actual) { const v=dv.getUint8(i); rgba[i*4]=((v>>4)&3)*255/3; rgba[i*4+1]=((v>>2)&3)*255/3; rgba[i*4+2]=(v&3)*255/3; rgba[i*4+3]=((v>>6)&3)*255/3; }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'ARGB1555') {
+      for (let i = 0; i < w*h; i++) {
+        if (i*2+1<actual) { const v=dv.getUint16(i*2,true); rgba[i*4]=((v>>10)&0x1F)*255/31; rgba[i*4+1]=((v>>5)&0x1F)*255/31; rgba[i*4+2]=(v&0x1F)*255/31; rgba[i*4+3]=(v&0x8000)?255:0; }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'RGB565') {
+      for (let i = 0; i < w*h; i++) {
+        if (i*2+1<actual) { const v=dv.getUint16(i*2,true); rgba[i*4]=((v>>11)&0x1F)*255/31; rgba[i*4+1]=((v>>5)&0x3F)*255/63; rgba[i*4+2]=(v&0x1F)*255/31; rgba[i*4+3]=255; }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'RGB888') {
+      for (let i = 0; i < w*h; i++) {
+        if (i*3+2<actual) { rgba[i*4]=dv.getUint8(i*3); rgba[i*4+1]=dv.getUint8(i*3+1); rgba[i*4+2]=dv.getUint8(i*3+2); rgba[i*4+3]=255; }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'JR2') {
+      for (let i = 0; i < w*h; i++) {
+        const v = i<actual ? dv.getUint8(i) : 0;
+        rgba[i*4]=v; rgba[i*4+1]=v; rgba[i*4+2]=v; rgba[i*4+3]=255;
+      }
+    }
+    return { rgba, width: w, height: h };
+  }
+
+  function parseFileToRGBA(arrayBuffer, fileName, params) {
+    const fmt = detectFormat(fileName);
+    if (fmt === 'image') return null; // handled by Image API
+
+    if (fmt === 'jr2') {
+      const u8 = new Uint8Array(arrayBuffer);
+      if (u8.length < 32 || String.fromCharCode(u8[0],u8[1],u8[2],u8[3]) !== 'JRAW') return null;
+      const srcH = (u8[12] << 8) | u8[13], srcW = (u8[14] << 8) | u8[15];
+      const rawPixels = u8.slice(32, 32 + srcW * srcH);
+      return { ...renderJR2Pure(rawPixels, srcW, srcH, params), format: 'jr2', srcW, srcH };
+    }
+    if (fmt === 'jl') {
+      const result = convJLFormatToRGBA8888(arrayBuffer, fileName.toLowerCase());
+      if (!result) return null;
+      return { rgba: result.imageData, width: result.width, height: result.height, format: 'jl' };
+    }
+    if (fmt === 'yuv') {
+      return { ...parseYUVPure(arrayBuffer, fileName, params), format: 'yuv' };
+    }
+    if (fmt === 'raw') {
+      return { ...parseRAWPure(arrayBuffer, fileName, params), format: 'raw' };
+    }
+    // argb
+    const fnLower = fileName.toLowerCase();
+    let w = params.width, h = params.height;
+    if (!w || !h) {
+      const dims = getDimensionsFromFileName(fileName);
+      if (dims) { w = dims.width; h = dims.height; }
+      else {
+        const bppGuess = fnLower.endsWith('.argb8888') ? 4 : fnLower.endsWith('.rgb888') ? 3 :
+          (fnLower.endsWith('.argb4444') || fnLower.endsWith('.argb1555') || fnLower.endsWith('.rgb565')) ? 2 : 1;
+        const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, bppGuess);
+        if (guess) { w = guess.width; h = guess.height; } else { w = 128; h = 128; }
+      }
+    }
+    const result = convToRGBA8888(arrayBuffer, w, h, fnLower);
+    if (!result) return null;
+    return { rgba: result.imageData, width: result.width, height: result.height, format: 'argb' };
+  }
+
+  // ── Load image as RGBA ───────────────────────────────────────
+
+  function loadImageAsRGBA(file, params = {}) {
+    const fmt = detectFormat(file.name);
+    return new Promise((resolve, reject) => {
+      if (fmt === 'image') {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const w = img.width, h = img.height;
+            const tc = document.createElement('canvas');
+            tc.width = w; tc.height = h;
+            const tctx = tc.getContext('2d');
+            tctx.drawImage(img, 0, 0);
+            const id = tctx.getImageData(0, 0, w, h);
+            URL.revokeObjectURL(img.src);
+            resolve({ rgba: new Uint8ClampedArray(id.data), width: w, height: h, name: file.name, format: 'image', arrayBuffer: null, params: {} });
+          } catch (err) {
+            URL.revokeObjectURL(img.src);
+            reject(new Error('無法讀取圖片像素資料 (可能為安全限制): ' + err.message));
+          }
+        };
+        img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('無法載入圖片')); };
+        img.src = URL.createObjectURL(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const buf = e.target.result;
+        const result = parseFileToRGBA(buf, file.name, params);
+        if (!result) { reject(new Error('無法解析檔案格式')); return; }
+        resolve({ rgba: result.rgba, width: result.width, height: result.height, name: file.name, format: result.format, arrayBuffer: buf, params: { ...params } });
+      };
+      reader.onerror = () => reject(new Error('無法讀取檔案'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // ── Compare rendering ───────────────────────────────────────
+
+  function cmpRenderCanvas(cvs, cctx, img) {
+    const w = img.width, h = img.height;
+    cvs.width = w; cvs.height = h;
+    const bgStyle = img.params && img.params.bgStyle || 'checker';
+
+    // Check if image has alpha
+    let hasAlpha = false;
+    for (let i = 3; i < img.rgba.length; i += 4) {
+      if (img.rgba[i] < 255) { hasAlpha = true; break; }
+    }
+
+    if (hasAlpha) {
+      // Draw background first
+      if (bgStyle === 'white') { cctx.fillStyle = '#fff'; cctx.fillRect(0, 0, w, h); }
+      else if (bgStyle === 'black') { cctx.fillStyle = '#000'; cctx.fillRect(0, 0, w, h); }
+      else {
+        const ts = Math.max(1, Math.floor(Math.min(w, h) / 20));
+        for (let y = 0; y < h; y += ts) for (let x = 0; x < w; x += ts) {
+          cctx.fillStyle = ((Math.floor(x/ts) + Math.floor(y/ts)) % 2 === 0) ? '#fff' : '#ccc';
+          cctx.fillRect(x, y, ts, ts);
+        }
+      }
+      // Alpha blend
+      const bgData = cctx.getImageData(0, 0, w, h);
+      const out = bgData.data;
+      for (let i = 0; i < w * h; i++) {
+        const a = img.rgba[i*4+3] / 255;
+        out[i*4]   = img.rgba[i*4]   * a + out[i*4]   * (1-a);
+        out[i*4+1] = img.rgba[i*4+1] * a + out[i*4+1] * (1-a);
+        out[i*4+2] = img.rgba[i*4+2] * a + out[i*4+2] * (1-a);
+        out[i*4+3] = 255;
+      }
+      cctx.putImageData(bgData, 0, 0);
+    } else {
+      const id = cctx.createImageData(w, h);
+      id.data.set(img.rgba);
+      cctx.putImageData(id, 0, 0);
+    }
+  }
+
+  function cmpApplyTransform() {
+    const t = `translate(${cmpPanX}px, ${cmpPanY}px) scale(${cmpScale})`;
+    cmpCanvasA.style.transform = t;
+    cmpCanvasB.style.transform = t;
+    cmpCanvasDiff.style.transform = t;
+    cmpDualCanvasA.style.transform = t;
+    cmpDualCanvasB.style.transform = t;
+    cmpUpdateDivider();
+  }
+
+  function cmpUpdateDivider() {
+    const rect = cmpCanvasWrap.getBoundingClientRect();
+    const px = Math.round(rect.width * cmpDividerX);
+    cmpDivider.style.left = px + 'px';
+    cmpClipB.style.left = px + 'px';
+    cmpClipB.style.width = (rect.width - px) + 'px';
+    cmpCanvasB.style.marginLeft = (-px) + 'px';
+  }
+
+  function cmpFitToWindow() {
+    if (!cmpImgA && !cmpImgB) return;
+    const img = cmpImgA || cmpImgB;
+    const rect = cmpCanvasWrap.getBoundingClientRect();
+    const sx = rect.width / img.width;
+    const sy = rect.height / img.height;
+    cmpScale = Math.min(sx, sy, 1);
+    cmpPanX = (rect.width - img.width * cmpScale) / 2;
+    cmpPanY = (rect.height - img.height * cmpScale) / 2;
+    cmpApplyTransform();
+  }
+
+  function cmpShowOriginalSize() {
+    if (!cmpImgA && !cmpImgB) return;
+    const img = cmpImgA || cmpImgB;
+    cmpScale = 1;
+    const rect = cmpCanvasWrap.getBoundingClientRect();
+    cmpPanX = (rect.width - img.width) / 2;
+    cmpPanY = (rect.height - img.height) / 2;
+    cmpApplyTransform();
+  }
+
+  function cmpUpdateLabels() {
+    if (cmpImgA) cmpLabelA.textContent = 'A: ' + cmpImgA.name;
+    if (cmpImgB) cmpLabelB.textContent = 'B: ' + cmpImgB.name;
+    cmpInfo.textContent = `${cmpImgA ? 'A: '+cmpImgA.width+'×'+cmpImgA.height : ''} ${cmpImgB ? '| B: '+cmpImgB.width+'×'+cmpImgB.height : ''}`;
+  }
+
+  function cmpRenderAll() {
+    if (cmpImgA) {
+      cmpRenderCanvas(cmpCanvasA, cmpCtxA, cmpImgA);
+      cmpRenderCanvas(cmpDualCanvasA, cmpDualCtxA, cmpImgA);
+    }
+    if (cmpImgB) {
+      cmpRenderCanvas(cmpCanvasB, cmpCtxB, cmpImgB);
+      cmpRenderCanvas(cmpDualCanvasB, cmpDualCtxB, cmpImgB);
+    }
+    if (cmpViewMode === 'diff' && cmpImgA && cmpImgB) cmpRenderDiff();
+  }
+
+  // ── Diff rendering ─────────────────────────────────────────
+
+  function cmpRenderDiff() {
+    if (!cmpImgA || !cmpImgB) return;
+    const w = Math.max(cmpImgA.width, cmpImgB.width);
+    const h = Math.max(cmpImgA.height, cmpImgB.height);
+    cmpCanvasDiff.width = w; cmpCanvasDiff.height = h;
+    const id = cmpCtxDiff.createImageData(w, h);
+    const gain = parseInt(cmpDiffGainSelect.value) || 5;
+
+    let diffPixelCount = 0;
+    let maxDiff = 0;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const di = (y * w + x) * 4;
+        const inA = x < cmpImgA.width && y < cmpImgA.height;
+        const inB = x < cmpImgB.width && y < cmpImgB.height;
+        if (inA && inB) {
+          const ai = (y * cmpImgA.width + x) * 4;
+          const bi = (y * cmpImgB.width + x) * 4;
+          const dR = Math.abs(cmpImgA.rgba[ai]   - cmpImgB.rgba[bi]);
+          const dG = Math.abs(cmpImgA.rgba[ai+1] - cmpImgB.rgba[bi+1]);
+          const dB = Math.abs(cmpImgA.rgba[ai+2] - cmpImgB.rgba[bi+2]);
+          const localMax = Math.max(dR, dG, dB);
+          if (localMax > 0) diffPixelCount++;
+          if (localMax > maxDiff) maxDiff = localMax;
+          id.data[di]   = Math.min(255, dR * gain);
+          id.data[di+1] = Math.min(255, dG * gain);
+          id.data[di+2] = Math.min(255, dB * gain);
+          id.data[di+3] = 255;
+        } else {
+          id.data[di] = 40; id.data[di+1] = 40; id.data[di+2] = 40; id.data[di+3] = 255;
+        }
+      }
+    }
+    cmpCtxDiff.putImageData(id, 0, 0);
+
+    // Update info bar with diff statistics
+    const totalPixels = Math.min(cmpImgA.width, cmpImgB.width) * Math.min(cmpImgA.height, cmpImgB.height);
+    const pct = totalPixels > 0 ? (diffPixelCount / totalPixels * 100).toFixed(2) : 0;
+    cmpInfo.textContent = `A: ${cmpImgA.width}\u00d7${cmpImgA.height} | B: ${cmpImgB.width}\u00d7${cmpImgB.height} | Diff: ${diffPixelCount} px (${pct}%) | Max: ${maxDiff} | Gain: ${gain}x`;
+  }
+
+  function cmpSetViewMode(mode) {
+    cmpViewMode = mode;
+    document.querySelectorAll('.cmp-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    cmpDiffGainSelect.style.display = mode === 'diff' ? '' : 'none';
+
+    // Hide all views first
+    cmpView.classList.remove('active');
+    cmpDualView.classList.remove('active');
+
+    if (mode === 'side') {
+      cmpDualView.classList.add('active');
+      if (cmpImgA && cmpImgB) {
+        cmpDualLabelA.textContent = 'A: ' + cmpImgA.name;
+        cmpDualLabelB.textContent = 'B: ' + cmpImgB.name;
+        cmpUpdateLabels();
+        requestAnimationFrame(() => cmpDualFitToWindow());
+      }
+    } else {
+      cmpView.classList.add('active');
+      if (mode === 'split') {
+        cmpCanvasA.style.display = '';
+        cmpClipB.style.display = '';
+        cmpDivider.style.display = '';
+        cmpLabelA.style.display = '';
+        cmpLabelB.style.display = '';
+        cmpCanvasDiff.style.display = 'none';
+        cmpUpdateDivider();
+        cmpUpdateLabels();
+      } else { // diff
+        cmpCanvasA.style.display = 'none';
+        cmpClipB.style.display = 'none';
+        cmpDivider.style.display = 'none';
+        cmpLabelA.style.display = 'none';
+        cmpLabelB.style.display = 'none';
+        cmpCanvasDiff.style.display = '';
+        if (cmpImgA && cmpImgB) {
+          cmpRenderDiff();
+          cmpApplyTransform();
+        }
+      }
+    }
+  }
+
+  // ── Dual (side-by-side) view ────────────────────────────────
+
+  function cmpDualFitToWindow() {
+    if (!cmpImgA && !cmpImgB) return;
+    const img = cmpImgA || cmpImgB;
+    const rect = cmpDualPanelA.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const sx = rect.width / img.width;
+    const sy = rect.height / img.height;
+    cmpScale = Math.min(sx, sy, 1);
+    cmpPanX = (rect.width - img.width * cmpScale) / 2;
+    cmpPanY = (rect.height - img.height * cmpScale) / 2;
+    cmpApplyTransform();
+  }
+
+  function cmpDualShowOriginalSize() {
+    if (!cmpImgA && !cmpImgB) return;
+    const img = cmpImgA || cmpImgB;
+    cmpScale = 1;
+    const rect = cmpDualPanelA.getBoundingClientRect();
+    cmpPanX = (rect.width - img.width) / 2;
+    cmpPanY = (rect.height - img.height) / 2;
+    cmpApplyTransform();
+  }
+
+  // Synchronized pan/zoom for both dual panels
+  [cmpDualPanelA, cmpDualPanelB].forEach(panel => {
+    panel.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = panel.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const old = cmpScale;
+      cmpScale = Math.max(0.05, Math.min(50, cmpScale * (e.deltaY < 0 ? 1.15 : 1/1.15)));
+      cmpPanX = mx - (mx - cmpPanX) * (cmpScale / old);
+      cmpPanY = my - (my - cmpPanY) * (cmpScale / old);
+      cmpApplyTransform();
+    }, { passive: false });
+
+    panel.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      cmpDragging = true;
+      cmpDragStartX = e.clientX; cmpDragStartY = e.clientY;
+      cmpPanStartX = cmpPanX; cmpPanStartY = cmpPanY;
+      panel.style.cursor = 'grabbing';
+    });
+  });
+
+  // Pixel info for dual view (on mousemove, detect which panel)
+  function cmpDualPixelInfo(e) {
+    if (cmpViewMode !== 'side' || !cmpImgA || !cmpImgB) return;
+    // Determine which panel we're hovering over
+    let refCanvas = null;
+    const rectA = cmpDualPanelA.getBoundingClientRect();
+    const rectB = cmpDualPanelB.getBoundingClientRect();
+    if (e.clientX >= rectA.left && e.clientX <= rectA.right && e.clientY >= rectA.top && e.clientY <= rectA.bottom) {
+      refCanvas = cmpDualCanvasA;
+    } else if (e.clientX >= rectB.left && e.clientX <= rectB.right && e.clientY >= rectB.top && e.clientY <= rectB.bottom) {
+      refCanvas = cmpDualCanvasB;
+    }
+    if (!refCanvas) { cmpPixelInfo.style.display = 'none'; return; }
+    const rect = refCanvas.getBoundingClientRect();
+    const cx = Math.floor((e.clientX - rect.left) / (rect.width / refCanvas.width));
+    const cy = Math.floor((e.clientY - rect.top) / (rect.height / refCanvas.height));
+    const maxW = Math.max(cmpImgA.width, cmpImgB.width);
+    const maxH = Math.max(cmpImgA.height, cmpImgB.height);
+    if (cx >= 0 && cy >= 0 && cx < maxW && cy < maxH) {
+      cmpPixelInfo.style.display = 'block';
+      let text = `X:${cx}  Y:${cy}\n`;
+      const inA = cx < cmpImgA.width && cy < cmpImgA.height;
+      const inB = cx < cmpImgB.width && cy < cmpImgB.height;
+      let rA=0,gA=0,bA=0,aA=0, rB=0,gB=0,bB=0,aB=0;
+      if (inA) { const i=(cy*cmpImgA.width+cx)*4; rA=cmpImgA.rgba[i]; gA=cmpImgA.rgba[i+1]; bA=cmpImgA.rgba[i+2]; aA=cmpImgA.rgba[i+3]; text+=`A: R:${rA} G:${gA} B:${bA} A:${aA}\n`; }
+      if (inB) { const i=(cy*cmpImgB.width+cx)*4; rB=cmpImgB.rgba[i]; gB=cmpImgB.rgba[i+1]; bB=cmpImgB.rgba[i+2]; aB=cmpImgB.rgba[i+3]; text+=`B: R:${rB} G:${gB} B:${bB} A:${aB}\n`; }
+      if (inA && inB) { const dR=rA-rB,dG=gA-gB,dB=bA-bB,dA=aA-aB; text+=`\u0394: R:${dR>0?'+':''}${dR} G:${dG>0?'+':''}${dG} B:${dB>0?'+':''}${dB} A:${dA>0?'+':''}${dA}`; }
+      cmpPixelInfo.textContent = text;
+    } else { cmpPixelInfo.style.display = 'none'; }
+  }
+
+  // ── Sidebar: Tab switching & control sync ───────────────────
+
+  function cmpGetActiveImg() { return cmpActiveTab === 'a' ? cmpImgA : cmpImgB; }
+
+  function cmpSyncSidebarFromParams(img) {
+    if (!img) {
+      cmpFormatDetail.textContent = '尚未載入檔案';
+      document.getElementById('cmp-section-resolution').style.display = 'none';
+      document.getElementById('cmp-section-jr2').style.display = 'none';
+      document.getElementById('cmp-section-yuv').style.display = 'none';
+      document.getElementById('cmp-section-raw').style.display = 'none';
+      document.getElementById('cmp-section-background').style.display = 'none';
+      return;
+    }
+    const p = img.params;
+    const fmt = img.format;
+
+    // Format info
+    let info = `格式: ${fmt.toUpperCase()}\n解析度: ${img.width}×${img.height}\n檔名: ${img.name}`;
+    cmpFormatDetail.textContent = info;
+
+    // Show/hide panels
+    const showRes = fmt === 'yuv' || fmt === 'raw' || fmt === 'argb';
+    document.getElementById('cmp-section-resolution').style.display = showRes ? '' : 'none';
+    document.getElementById('cmp-section-jr2').style.display = fmt === 'jr2' ? '' : 'none';
+    document.getElementById('cmp-section-yuv').style.display = fmt === 'yuv' ? '' : 'none';
+    document.getElementById('cmp-section-raw').style.display = fmt === 'raw' ? '' : 'none';
+
+    // Check alpha
+    let hasAlpha = false;
+    for (let i = 3; i < img.rgba.length; i += 4) { if (img.rgba[i] < 255) { hasAlpha = true; break; } }
+    document.getElementById('cmp-section-background').style.display = hasAlpha ? '' : 'none';
+
+    // Fill control values
+    cmpInputWidth.value = img.width;
+    cmpInputHeight.value = img.height;
+    cmpModeSelect.value = p.jr2Mode || 'binning';
+    cmpBrightnessInput.value = p.jr2Brightness || 0; cmpBval.textContent = p.jr2Brightness || 0;
+    cmpContrastInput.value = p.jr2Contrast != null ? p.jr2Contrast : 1; cmpCval.textContent = (p.jr2Contrast != null ? p.jr2Contrast : 1).toFixed(1);
+    cmpGammaInput.value = p.jr2Gamma != null ? p.jr2Gamma : 1; cmpGval.textContent = (p.jr2Gamma != null ? p.jr2Gamma : 1).toFixed(1);
+    cmpYuvFormatSelect.value = p.yuvFormat || 'NV12';
+    cmpYuvBitdepthSelect.value = p.yuvBitDepth || 8;
+    cmpYuvUvSignedCheckbox.checked = !!p.yuvUvSigned;
+    cmpRawPixfmtSelect.value = p.rawPixelFormat || 'ARGB8888';
+    cmpBgStyleSelect.value = p.bgStyle || 'checker';
+  }
+
+  function cmpSwitchTab(tab) {
+    cmpActiveTab = tab;
+    document.querySelectorAll('.cmp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    cmpSyncSidebarFromParams(cmpGetActiveImg());
+  }
+
+  document.querySelectorAll('.cmp-tab').forEach(t => {
+    t.addEventListener('click', () => cmpSwitchTab(t.dataset.tab));
+  });
+
+  // ── Sidebar: Re-parse on parameter change ───────────────────
+
+  function cmpReparse(img, side) {
+    if (!img || !img.arrayBuffer) return;
+    const result = parseFileToRGBA(img.arrayBuffer, img.name, img.params);
+    if (!result) return;
+    img.rgba = result.rgba; img.width = result.width; img.height = result.height;
+    // Re-render all affected canvases
+    if (side === 'a') {
+      cmpRenderCanvas(cmpCanvasA, cmpCtxA, img);
+      cmpRenderCanvas(cmpDualCanvasA, cmpDualCtxA, img);
+    } else {
+      cmpRenderCanvas(cmpCanvasB, cmpCtxB, img);
+      cmpRenderCanvas(cmpDualCanvasB, cmpDualCtxB, img);
+    }
+    if (cmpViewMode === 'diff' && cmpImgA && cmpImgB) cmpRenderDiff();
+    cmpUpdateLabels();
+    cmpSyncSidebarFromParams(img);
+  }
+
+  function cmpGetCurrentSideParams() {
+    const img = cmpGetActiveImg();
+    if (!img) return null;
+    return img.params;
+  }
+
+  // Resolution inputs
+  cmpInputWidth.addEventListener('input', () => {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.width = parseInt(cmpInputWidth.value) || null;
+    p.height = parseInt(cmpInputHeight.value) || null;
+    cmpReparse(cmpGetActiveImg(), cmpActiveTab);
+    cmpFitToWindow();
+  });
+  cmpInputHeight.addEventListener('input', () => {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.width = parseInt(cmpInputWidth.value) || null;
+    p.height = parseInt(cmpInputHeight.value) || null;
+    cmpReparse(cmpGetActiveImg(), cmpActiveTab);
+    cmpFitToWindow();
+  });
+
+  // JR2 controls
+  function cmpJR2Change() {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.jr2Mode = cmpModeSelect.value;
+    p.jr2Brightness = parseInt(cmpBrightnessInput.value);
+    p.jr2Contrast = parseFloat(cmpContrastInput.value);
+    p.jr2Gamma = parseFloat(cmpGammaInput.value);
+    cmpBval.textContent = p.jr2Brightness;
+    cmpCval.textContent = p.jr2Contrast.toFixed(1);
+    cmpGval.textContent = p.jr2Gamma.toFixed(1);
+    cmpReparse(cmpGetActiveImg(), cmpActiveTab);
+  }
+  cmpModeSelect.addEventListener('change', () => { cmpJR2Change(); cmpFitToWindow(); });
+  cmpBrightnessInput.addEventListener('input', cmpJR2Change);
+  cmpContrastInput.addEventListener('input', cmpJR2Change);
+  cmpGammaInput.addEventListener('input', cmpJR2Change);
+  document.getElementById('cmp-btn-jr2-reset').addEventListener('click', () => {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.jr2Brightness = 0; p.jr2Contrast = 1; p.jr2Gamma = 1;
+    cmpBrightnessInput.value = 0; cmpBval.textContent = '0';
+    cmpContrastInput.value = 1; cmpCval.textContent = '1.0';
+    cmpGammaInput.value = 1; cmpGval.textContent = '1.0';
+    cmpReparse(cmpGetActiveImg(), cmpActiveTab);
+  });
+
+  // YUV apply
+  document.getElementById('cmp-btn-yuv-apply').addEventListener('click', () => {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.yuvFormat = cmpYuvFormatSelect.value;
+    p.yuvBitDepth = parseInt(cmpYuvBitdepthSelect.value);
+    p.yuvUvSigned = cmpYuvUvSignedCheckbox.checked;
+    p.width = parseInt(cmpInputWidth.value) || null;
+    p.height = parseInt(cmpInputHeight.value) || null;
+    cmpReparse(cmpGetActiveImg(), cmpActiveTab);
+    cmpFitToWindow();
+  });
+
+  // RAW apply
+  document.getElementById('cmp-btn-raw-apply').addEventListener('click', () => {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.rawPixelFormat = cmpRawPixfmtSelect.value;
+    p.width = parseInt(cmpInputWidth.value) || null;
+    p.height = parseInt(cmpInputHeight.value) || null;
+    cmpReparse(cmpGetActiveImg(), cmpActiveTab);
+    cmpFitToWindow();
+  });
+
+  // Background
+  cmpBgStyleSelect.addEventListener('change', () => {
+    const p = cmpGetCurrentSideParams(); if (!p) return;
+    p.bgStyle = cmpBgStyleSelect.value;
+    const img = cmpGetActiveImg();
+    if (img) {
+      const cvs = cmpActiveTab === 'a' ? cmpCanvasA : cmpCanvasB;
+      const cctx = cmpActiveTab === 'a' ? cmpCtxA : cmpCtxB;
+      cmpRenderCanvas(cvs, cctx, img);
+    }
+  });
+
+  // ── Start view ─────────────────────────────────────────────
+
+  function cmpStartView() {
+    if (!cmpImgA || !cmpImgB) return;
+    cmpRenderAll();
+    cmpDropA.style.display = 'none';
+    cmpDropB.style.display = 'none';
+    document.querySelector('.compare-load-separator').style.display = 'none';
+    cmpView.classList.add('active');
+    cmpDividerX = 0.5;
+    cmpSetViewMode(cmpViewMode);
+    cmpUpdateLabels();
+    cmpSwitchTab(cmpActiveTab);
+    requestAnimationFrame(() => { cmpFitToWindow(); });
+  }
+
+  // ── Drop panel events ───────────────────────────────────────
+
+  async function cmpLoadFile(file, side) {
+    try {
+      const defaultP = cmpDefaultParams();
+      const img = await loadImageAsRGBA(file, defaultP);
+      // Ensure params on the img object
+      if (!img.params || Object.keys(img.params).length === 0) img.params = defaultP;
+      // Store detected width/height into params
+      img.params.width = img.width;
+      img.params.height = img.height;
+      img.fileObj = file;
+
+      if (side === 'a') {
+        cmpImgA = img;
+        if (!cmpView.classList.contains('active')) {
+          cmpDropA.classList.add('has-image');
+          cmpDropA.innerHTML = `<div style="text-align:center;pointer-events:none;"><p style="font-size:14px;color:var(--fg-muted);font-weight:500;">&#x2713; ${img.name}</p><p style="font-size:12px;color:var(--fg-dim);margin-top:4px;">${img.width}×${img.height}</p></div>`;
+        }
+      } else {
+        cmpImgB = img;
+        if (!cmpView.classList.contains('active')) {
+          cmpDropB.classList.add('has-image');
+          cmpDropB.innerHTML = `<div style="text-align:center;pointer-events:none;"><p style="font-size:14px;color:var(--fg-muted);font-weight:500;">&#x2713; ${img.name}</p><p style="font-size:12px;color:var(--fg-dim);margin-top:4px;">${img.width}×${img.height}</p></div>`;
+        }
+      }
+
+      if (cmpImgA && cmpImgB) {
+        if (cmpView.classList.contains('active') || cmpDualView.classList.contains('active')) {
+          // Re-render affected canvases
+          if (side === 'a') {
+            cmpRenderCanvas(cmpCanvasA, cmpCtxA, img);
+            cmpRenderCanvas(cmpDualCanvasA, cmpDualCtxA, img);
+          } else {
+            cmpRenderCanvas(cmpCanvasB, cmpCtxB, img);
+            cmpRenderCanvas(cmpDualCanvasB, cmpDualCtxB, img);
+          }
+          if (cmpViewMode === 'diff') cmpRenderDiff();
+          if (cmpViewMode === 'side') {
+            cmpDualLabelA.textContent = 'A: ' + cmpImgA.name;
+            cmpDualLabelB.textContent = 'B: ' + cmpImgB.name;
+          }
+          cmpUpdateLabels();
+          if (cmpViewMode === 'side') cmpDualFitToWindow();
+          else cmpFitToWindow();
+        } else {
+          cmpStartView();
+        }
+      }
+      // Switch tab to the loaded side
+      cmpSwitchTab(side);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function setupCmpDrop(panel, side) {
+    panel.addEventListener('dragover', (e) => { e.preventDefault(); panel.classList.add('dragover'); });
+    panel.addEventListener('dragleave', () => panel.classList.remove('dragover'));
+    panel.addEventListener('drop', (e) => {
+      e.preventDefault(); panel.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) cmpLoadFile(e.dataTransfer.files[0], side);
+    });
+    panel.addEventListener('click', () => {
+      if (!panel.classList.contains('has-image')) {
+        (side === 'a' ? cmpFileA : cmpFileB).click();
+      }
+    });
+  }
+  setupCmpDrop(cmpDropA, 'a');
+  setupCmpDrop(cmpDropB, 'b');
+
+  document.getElementById('cmp-btn-open-a').addEventListener('click', () => cmpFileA.click());
+  document.getElementById('cmp-btn-open-b').addEventListener('click', () => cmpFileB.click());
+
+  // Drag & drop on split view
+  cmpCanvasWrap.addEventListener('dragover', (e) => e.preventDefault());
+  cmpCanvasWrap.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (!e.dataTransfer.files[0]) return;
+    const rect = cmpCanvasWrap.getBoundingClientRect();
+    const side = (e.clientX - rect.left) / rect.width < cmpDividerX ? 'a' : 'b';
+    cmpLoadFile(e.dataTransfer.files[0], side);
+  });
+
+  // ── Divider dragging ────────────────────────────────────────
+
+  cmpDivider.addEventListener('mousedown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    cmpDivDragging = true;
+  });
+
+  // ── Compare pan/zoom ────────────────────────────────────────
+
+  cmpCanvasWrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = cmpCanvasWrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const old = cmpScale;
+    cmpScale = Math.max(0.05, Math.min(50, cmpScale * (e.deltaY < 0 ? 1.15 : 1/1.15)));
+    cmpPanX = mx - (mx - cmpPanX) * (cmpScale / old);
+    cmpPanY = my - (my - cmpPanY) * (cmpScale / old);
+    cmpApplyTransform();
+  }, { passive: false });
+
+  cmpCanvasWrap.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || cmpDivDragging) return;
+    cmpDragging = true;
+    cmpDragStartX = e.clientX; cmpDragStartY = e.clientY;
+    cmpPanStartX = cmpPanX; cmpPanStartY = cmpPanY;
+    cmpCanvasWrap.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (cmpDivDragging) {
+      const rect = cmpCanvasWrap.getBoundingClientRect();
+      cmpDividerX = Math.max(0.01, Math.min(0.99, (e.clientX - rect.left) / rect.width));
+      cmpUpdateDivider();
+      return;
+    }
+    if (cmpDragging) {
+      cmpPanX = cmpPanStartX + (e.clientX - cmpDragStartX);
+      cmpPanY = cmpPanStartY + (e.clientY - cmpDragStartY);
+      cmpApplyTransform();
+    }
+
+    // Compare pixel info
+    if (cmpOverlay.classList.contains('active') && cmpImgA && cmpImgB) {
+      if (cmpViewMode === 'side') {
+        cmpDualPixelInfo(e);
+      } else if (cmpView.classList.contains('active')) {
+        const refCanvas = cmpViewMode === 'diff' ? cmpCanvasDiff : cmpCanvasA;
+        const rect = refCanvas.getBoundingClientRect();
+        const cx = Math.floor((e.clientX - rect.left) / (rect.width / refCanvas.width));
+        const cy = Math.floor((e.clientY - rect.top) / (rect.height / refCanvas.height));
+        const maxW = Math.max(cmpImgA.width, cmpImgB.width);
+        const maxH = Math.max(cmpImgA.height, cmpImgB.height);
+        if (cx >= 0 && cy >= 0 && cx < maxW && cy < maxH) {
+          cmpPixelInfo.style.display = 'block';
+          let text = `X:${cx}  Y:${cy}\n`;
+          const inA = cx < cmpImgA.width && cy < cmpImgA.height;
+          const inB = cx < cmpImgB.width && cy < cmpImgB.height;
+          let rA=0,gA=0,bA=0,aA=0, rB=0,gB=0,bB=0,aB=0;
+          if (inA) { const i=(cy*cmpImgA.width+cx)*4; rA=cmpImgA.rgba[i]; gA=cmpImgA.rgba[i+1]; bA=cmpImgA.rgba[i+2]; aA=cmpImgA.rgba[i+3]; text+=`A: R:${rA} G:${gA} B:${bA} A:${aA}\n`; }
+          else { text += `A: (\u8d85\u51fa\u7bc4\u570d)\n`; }
+          if (inB) { const i=(cy*cmpImgB.width+cx)*4; rB=cmpImgB.rgba[i]; gB=cmpImgB.rgba[i+1]; bB=cmpImgB.rgba[i+2]; aB=cmpImgB.rgba[i+3]; text+=`B: R:${rB} G:${gB} B:${bB} A:${aB}\n`; }
+          else { text += `B: (\u8d85\u51fa\u7bc4\u570d)\n`; }
+          if (inA && inB) { const dR=rA-rB,dG=gA-gB,dB=bA-bB,dA=aA-aB; text+=`\u0394: R:${dR>0?'+':''}${dR} G:${dG>0?'+':''}${dG} B:${dB>0?'+':''}${dB} A:${dA>0?'+':''}${dA}`; }
+          cmpPixelInfo.textContent = text;
+        } else { cmpPixelInfo.style.display = 'none'; }
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    cmpDragging = false; cmpDivDragging = false;
+    cmpCanvasWrap.style.cursor = '';
+    cmpDualPanelA.style.cursor = '';
+    cmpDualPanelB.style.cursor = '';
+  });
+
+  // ── Compare buttons ─────────────────────────────────────────
+
+  document.getElementById('btn-compare').addEventListener('click', () => {
+    cmpOverlay.classList.add('active');
+    if (cmpImgA && cmpImgB) {
+      requestAnimationFrame(() => {
+        if (cmpViewMode === 'side') cmpDualFitToWindow();
+        else cmpFitToWindow();
+      });
+    }
+  });
+
+  document.getElementById('cmp-btn-close').addEventListener('click', () => {
+    cmpOverlay.classList.remove('active');
+    cmpPixelInfo.style.display = 'none';
+  });
+
+  document.getElementById('cmp-btn-fit').addEventListener('click', () => {
+    if (cmpViewMode === 'side') cmpDualFitToWindow();
+    else cmpFitToWindow();
+  });
+  document.getElementById('cmp-btn-100').addEventListener('click', () => {
+    if (cmpViewMode === 'side') cmpDualShowOriginalSize();
+    else cmpShowOriginalSize();
+  });
+
+  // Mode toggle (Split / Diff)
+  document.querySelectorAll('.cmp-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => cmpSetViewMode(btn.dataset.mode));
+  });
+
+  // Diff gain
+  cmpDiffGainSelect.addEventListener('change', () => {
+    if (cmpViewMode === 'diff' && cmpImgA && cmpImgB) cmpRenderDiff();
+  });
+
+  // Swap
+  document.getElementById('cmp-btn-swap').addEventListener('click', () => {
+    if (!cmpImgA || !cmpImgB) return;
+    [cmpImgA, cmpImgB] = [cmpImgB, cmpImgA];
+    cmpRenderAll();
+    cmpUpdateLabels();
+    if (cmpViewMode === 'side') {
+      cmpDualLabelA.textContent = 'A: ' + cmpImgA.name;
+      cmpDualLabelB.textContent = 'B: ' + cmpImgB.name;
+    }
+    cmpSyncSidebarFromParams(cmpGetActiveImg());
+  });
+
+  // File input handlers
+  cmpFileA.addEventListener('change', () => { if (cmpFileA.files[0]) cmpLoadFile(cmpFileA.files[0], 'a'); });
+  cmpFileB.addEventListener('change', () => { if (cmpFileB.files[0]) cmpLoadFile(cmpFileB.files[0], 'b'); });
+
+  // Window resize
+  window.addEventListener('resize', () => {
+    if (cmpOverlay.classList.contains('active')) {
+      if (cmpViewMode === 'side') cmpDualFitToWindow();
+      else if (cmpView.classList.contains('active')) cmpUpdateDivider();
+    }
+  });
+
+  // ESC to close compare
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && cmpOverlay.classList.contains('active')) {
+      cmpOverlay.classList.remove('active');
+      cmpPixelInfo.style.display = 'none';
+    }
   });
 })();
 </script>
