@@ -1240,8 +1240,14 @@
     const isJL = isARGB && argbResult && argbResult.source === 'header';
     document.getElementById('section-resolution').style.display = ((isARGB && !isJL) || isYUV || isRAW) ? '' : 'none';
 
-    // Show background for ARGB, PNG, YUV, RAW
-    document.getElementById('section-background').style.display = (isARGB || isPNG || isYUV || isRAW) ? '' : 'none';
+    // Show background only when image has transparency
+    let hasAlpha = false;
+    if (argbImageData) {
+      for (let i = 3; i < argbImageData.length; i += 4) {
+        if (argbImageData[i] < 255) { hasAlpha = true; break; }
+      }
+    }
+    document.getElementById('section-background').style.display = hasAlpha ? '' : 'none';
 
     // Update format detail
     if (isJR2) {
