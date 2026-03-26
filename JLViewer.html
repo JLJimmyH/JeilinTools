@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JL Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Design Tokens (Dark — default) ─────────────────────────── */
+  :root {
+    --bg-base: #050506;
+    --bg-elevated: rgba(10, 10, 12, 0.8);
+    --bg-tooltip: rgba(10, 10, 12, 0.85);
+    --bg-input: #0F0F12;
+    --surface: rgba(255,255,255,0.05);
+    --surface-hover: rgba(255,255,255,0.08);
+    --fg: #EDEDEF;
+    --fg-muted: #8A8F98;
+    --fg-dim: rgba(255,255,255,0.35);
+    --accent: #5E6AD2;
+    --accent-bright: #6872D9;
+    --accent-glow: rgba(94,106,210,0.3);
+    --accent-glow-strong: rgba(94,106,210,0.5);
+    --border: rgba(255,255,255,0.06);
+    --border-hover: rgba(255,255,255,0.10);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 16px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration: 200ms;
+
+    --title-from: #ffffff;
+    --title-to: rgba(255,255,255,0.5);
+    --toolbar-shadow: inset 0 -1px 0 0 rgba(0,0,0,0.3);
+    --range-track: rgba(255,255,255,0.1);
+    --thumb-ring: rgba(0,0,0,0.3);
+    --btn-inset: rgba(255,255,255,0.04);
+    --btn-inset-hover: rgba(255,255,255,0.06);
+    --btn-shadow: rgba(0,0,0,0.3);
+    --btn-shadow-hover: rgba(0,0,0,0.4);
+    --dropzone-border: rgba(255,255,255,0.08);
+    --dropzone-bg-from: rgba(255,255,255,0.03);
+    --dropzone-bg-to: rgba(255,255,255,0.01);
+    --tooltip-inset: rgba(255,255,255,0.04);
+    --tooltip-shadow: rgba(0,0,0,0.5);
+    --blob-1-bg: var(--accent);
+    --blob-2-bg: #4338ca;
+    --blob-3-bg: #7c3aed;
+    --blob-1-opacity: 0.12;
+    --blob-2-opacity: 0.08;
+    --blob-3-opacity: 0.06;
+    --noise-opacity: 0.025;
+    --icon-filter: grayscale(1);
+    --icon-opacity: 0.2;
+    --scrollbar-thumb: rgba(255,255,255,0.1);
+    --scrollbar-thumb-hover: rgba(255,255,255,0.18);
+  }
+
+  /* ── Light Theme ────────────────────────────────────────────── */
+  [data-theme="light"] {
+    --bg-base: #F5F5F7;
+    --bg-elevated: rgba(255, 255, 255, 0.85);
+    --bg-tooltip: rgba(255, 255, 255, 0.9);
+    --bg-input: #EEEEF0;
+    --surface: rgba(0,0,0,0.04);
+    --surface-hover: rgba(0,0,0,0.07);
+    --fg: #1A1A2E;
+    --fg-muted: #5C6070;
+    --fg-dim: rgba(0,0,0,0.35);
+    --accent: #4F5BC7;
+    --accent-bright: #5E6AD2;
+    --accent-glow: rgba(79,91,199,0.25);
+    --accent-glow-strong: rgba(79,91,199,0.4);
+    --border: rgba(0,0,0,0.08);
+    --border-hover: rgba(0,0,0,0.14);
+    --title-from: #1A1A2E;
+    --title-to: rgba(26,26,46,0.6);
+    --toolbar-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --range-track: rgba(0,0,0,0.1);
+    --thumb-ring: rgba(255,255,255,0.8);
+    --btn-inset: rgba(255,255,255,0.6);
+    --btn-inset-hover: rgba(255,255,255,0.8);
+    --btn-shadow: rgba(0,0,0,0.06);
+    --btn-shadow-hover: rgba(0,0,0,0.1);
+    --dropzone-border: rgba(0,0,0,0.1);
+    --dropzone-bg-from: rgba(0,0,0,0.02);
+    --dropzone-bg-to: rgba(0,0,0,0.005);
+    --tooltip-inset: rgba(255,255,255,0.5);
+    --tooltip-shadow: rgba(0,0,0,0.08);
+    --blob-1-bg: #818CF8;
+    --blob-2-bg: #A78BFA;
+    --blob-3-bg: #C4B5FD;
+    --blob-1-opacity: 0.15;
+    --blob-2-opacity: 0.10;
+    --blob-3-opacity: 0.08;
+    --noise-opacity: 0.015;
+    --icon-filter: none;
+    --icon-opacity: 0.35;
+    --scrollbar-thumb: rgba(0,0,0,0.12);
+    --scrollbar-thumb-hover: rgba(0,0,0,0.22);
+  }
+
+  /* ── Reset & Base ───────────────────────────────────────────── */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-base);
+    color: var(--fg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background var(--duration) var(--ease-out),
+                color var(--duration) var(--ease-out);
+  }
+
+  /* ── Ambient Background ─────────────────────────────────────── */
+  .ambient-bg {
+    position: fixed; inset: 0; z-index: 0;
+    overflow: hidden; pointer-events: none;
+  }
+  .blob { position: absolute; border-radius: 50%; filter: blur(120px); transition: opacity 0.6s ease, background 0.6s ease; }
+  .blob-1 { width: 700px; height: 500px; background: var(--blob-1-bg); opacity: var(--blob-1-opacity); top: -200px; left: -100px; animation: drift1 25s ease-in-out infinite alternate; }
+  .blob-2 { width: 500px; height: 400px; background: var(--blob-2-bg); opacity: var(--blob-2-opacity); bottom: -150px; right: -80px; animation: drift2 30s ease-in-out infinite alternate; }
+  .blob-3 { width: 400px; height: 350px; background: var(--blob-3-bg); opacity: var(--blob-3-opacity); top: 40%; left: 50%; animation: drift3 20s ease-in-out infinite alternate; }
+
+  .noise-overlay {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    opacity: var(--noise-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat; background-size: 256px 256px;
+  }
+
+  @keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(80px,60px) scale(1.1); } }
+  @keyframes drift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-60px,-40px) scale(1.15); } }
+  @keyframes drift3 { from { transform: translate(-50%,-50%) scale(1); } to { transform: translate(calc(-50% + 40px),calc(-50% - 30px)) scale(1.05); } }
+  @media (prefers-reduced-motion: reduce) { .blob { animation: none !important; } }
+
+  /* ── Focus ──────────────────────────────────────────────────── */
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:focus-visible, select:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-glow-strong); }
+
+  /* ── Shared Controls ────────────────────────────────────────── */
+  .ctrl-select, .ctrl-btn {
+    background: var(--surface); color: var(--fg);
+    border: 1px solid var(--border); padding: 5px 12px;
+    border-radius: var(--radius-sm); font-size: 13px;
+    font-family: inherit; font-weight: 500; cursor: pointer;
+    transition: all var(--duration) var(--ease-out);
+    box-shadow: inset 0 1px 0 0 var(--btn-inset), 0 1px 3px var(--btn-shadow);
+  }
+  .ctrl-select:hover, .ctrl-btn:hover {
+    background: var(--surface-hover); border-color: var(--border-hover);
+    box-shadow: inset 0 1px 0 0 var(--btn-inset-hover), 0 4px 12px var(--btn-shadow-hover);
+  }
+  .ctrl-btn:active { transform: scale(0.98); transition-duration: 80ms; }
+  .ctrl-input {
+    background: var(--bg-input); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 4px 8px; font-size: 13px; font-family: inherit;
+    transition: border-color var(--duration) var(--ease-out);
+  }
+  .ctrl-input:focus { border-color: var(--accent); }
+  .ctrl-range {
+    width: 100%; -webkit-appearance: none; appearance: none;
+    height: 4px; background: var(--range-track); border-radius: 2px; outline: none;
+  }
+  .ctrl-range::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent-bright); cursor: pointer;
+    box-shadow: 0 0 8px var(--accent-glow), 0 0 0 2px var(--thumb-ring);
+    transition: box-shadow var(--duration) var(--ease-out);
+  }
+  .ctrl-range::-webkit-slider-thumb:hover { box-shadow: 0 0 14px var(--accent-glow-strong), 0 0 0 2px var(--thumb-ring); }
+  .ctrl-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent-bright); border: none; cursor: pointer; box-shadow: 0 0 8px var(--accent-glow); }
+  .ctrl-range::-moz-range-track { height: 4px; background: var(--range-track); border-radius: 2px; border: none; }
+
+  /* ── Toolbar ────────────────────────────────────────────────── */
+  .toolbar {
+    background: var(--bg-elevated); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border); min-height: 48px;
+    position: relative; z-index: 3; box-shadow: var(--toolbar-shadow);
+    transition: background var(--duration) var(--ease-out), border-color var(--duration) var(--ease-out), box-shadow var(--duration) var(--ease-out);
+  }
+  .toolbar h1 {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+    background: linear-gradient(180deg, var(--title-from) 20%, var(--title-to) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    white-space: nowrap;
+  }
+  .toolbar .sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+  .toolbar .info { font-size: 12px; color: var(--fg-muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #btn-theme { font-size: 16px; line-height: 1; padding: 4px 8px; -webkit-text-fill-color: initial; }
+
+  /* ── Main Area ──────────────────────────────────────────────── */
+  .main-area { flex: 1; display: flex; overflow: hidden; position: relative; z-index: 2; }
+
+  /* ── Sidebar ────────────────────────────────────────────────── */
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: var(--bg-elevated); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transition: width 300ms var(--ease-out);
+    position: relative; z-index: 2;
+    overflow: hidden;
+  }
+  .sidebar.collapsed { width: 0; border-right: none; }
+  .sidebar-content {
+    width: 220px; flex: 1; overflow-y: auto; padding: 4px 0;
+    scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  .sidebar-content::-webkit-scrollbar { width: 4px; }
+  .sidebar-content::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+  .sidebar-content::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+  .sidebar-toggle {
+    position: absolute; top: 50%; right: -14px; transform: translateY(-50%);
+    width: 14px; height: 48px;
+    background: var(--bg-elevated); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border); border-left: none;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--fg-muted); font-size: 10px; cursor: pointer; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    transition: color var(--duration) var(--ease-out);
+  }
+  .sidebar-toggle:hover { color: var(--fg); }
+  .sidebar.collapsed .sidebar-toggle { right: -14px; }
+
+  .panel-section {
+    margin: 6px 8px; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: background var(--duration) var(--ease-out), border-color var(--duration) var(--ease-out);
+  }
+  .panel-title {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--fg-muted); margin-bottom: 8px;
+  }
+  .panel-body { display: flex; flex-direction: column; gap: 6px; }
+  .panel-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; font-weight: 500; color: var(--fg-muted); gap: 8px;
+  }
+  .panel-row .label-text { flex-shrink: 0; min-width: 42px; }
+  .panel-row .ctrl-range { flex: 1; }
+  .panel-row .val { min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .panel-row .ctrl-select, .panel-row .ctrl-input { flex: 1; min-width: 0; }
+  .panel-row .ctrl-input[type="number"] { width: 70px; flex: 0 0 70px; text-align: right; }
+  .panel-body .ctrl-btn { width: 100%; margin-top: 2px; }
+  .format-text { font-size: 12px; color: var(--fg-muted); line-height: 1.6; word-break: break-all; }
+
+  /* ── Dropzone ───────────────────────────────────────────────── */
+  #dropzone {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; overflow: hidden; z-index: 2;
+  }
+  #dropzone.empty {
+    border: 2px dashed var(--dropzone-border); margin: 16px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--dropzone-bg-from) 0%, var(--dropzone-bg-to) 100%);
+    transition: border-color var(--duration) var(--ease-out), background var(--duration) var(--ease-out), box-shadow var(--duration) var(--ease-out);
+  }
+  #dropzone.empty:hover, #dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(94, 106, 210, 0.04);
+    box-shadow: inset 0 0 60px rgba(94,106,210,0.06), 0 0 40px rgba(94,106,210,0.05);
+  }
+  #dropzone .placeholder { text-align: center; pointer-events: none; }
+  #dropzone .placeholder .icon { font-size: 64px; opacity: var(--icon-opacity); filter: var(--icon-filter); }
+  #dropzone .placeholder p { font-size: 18px; font-weight: 500; margin-top: 12px; color: var(--fg-muted); }
+  #dropzone .placeholder .hint { font-size: 13px; color: var(--fg-dim); margin-top: 8px; }
+
+  /* ── Canvas ─────────────────────────────────────────────────── */
+  #canvas-wrap { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; display: none; }
+  #canvas-wrap canvas { position: absolute; transform-origin: 0 0; image-rendering: pixelated; }
+
+  /* ── Pixel Info ─────────────────────────────────────────────── */
+  #pixel-info {
+    position: fixed; bottom: 8px; left: 8px;
+    background: var(--bg-tooltip); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    font-size: 12px; font-family: 'Cascadia Code', 'SF Mono', Consolas, monospace;
+    color: var(--fg-muted); pointer-events: none; display: none; z-index: 10;
+    box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
+    transition: background var(--duration) var(--ease-out), border-color var(--duration) var(--ease-out);
+  }
+
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<div class="ambient-bg" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<div class="noise-overlay" aria-hidden="true"></div>
+
+<div class="toolbar">
+  <h1>JL Viewer</h1>
+  <div class="sep"></div>
+  <button class="ctrl-btn" id="btn-open">開啟檔案</button>
+  <div class="sep"></div>
+  <button class="ctrl-btn" id="btn-fit">適合視窗</button>
+  <button class="ctrl-btn" id="btn-100">1:1</button>
+  <button class="ctrl-btn" id="btn-theme" title="切換日間/夜間模式" aria-label="切換日間/夜間模式">&#x1F319;</button>
+  <span class="info" id="info"></span>
+</div>
+
+<div class="main-area">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-content">
+
+      <div class="panel-section" id="section-info">
+        <div class="panel-title">格式資訊</div>
+        <div class="panel-body">
+          <div class="format-text" id="format-detail">尚未載入檔案</div>
+        </div>
+      </div>
+
+      <div class="panel-section" id="section-resolution" style="display:none">
+        <div class="panel-title">解析度</div>
+        <div class="panel-body">
+          <div class="panel-row"><span class="label-text">寬度</span><input type="number" class="ctrl-input" id="input-width" min="1" max="9999" placeholder="128"></div>
+          <div class="panel-row"><span class="label-text">高度</span><input type="number" class="ctrl-input" id="input-height" min="1" max="9999" placeholder="128"></div>
+        </div>
+      </div>
+
+      <div class="panel-section" id="section-background" style="display:none">
+        <div class="panel-title">背景</div>
+        <div class="panel-body">
+          <div class="panel-row">
+            <select class="ctrl-select" id="bg-style">
+              <option value="checker" selected>黑白方格</option>
+              <option value="white">白色</option>
+              <option value="black">黑色</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section" id="section-jr2" style="display:none">
+        <div class="panel-title">影像調整</div>
+        <div class="panel-body">
+          <div class="panel-row"><span class="label-text">模式</span><select class="ctrl-select" id="mode">
+            <option value="raw">Raw 灰階</option>
+            <option value="binning" selected>2×2 Binning</option>
+            <option value="stretch">自動拉伸</option>
+            <option value="binning-stretch">Binning + 拉伸</option>
+          </select></div>
+          <div class="panel-row"><span class="label-text">亮度</span><input type="range" class="ctrl-range" id="brightness" min="-128" max="128" value="0"><span class="val" id="bval">0</span></div>
+          <div class="panel-row"><span class="label-text">對比</span><input type="range" class="ctrl-range" id="contrast" min="0.2" max="5" value="1" step="0.1"><span class="val" id="cval">1.0</span></div>
+          <div class="panel-row"><span class="label-text">Gamma</span><input type="range" class="ctrl-range" id="gamma" min="0.2" max="4" value="1" step="0.1"><span class="val" id="gval">1.0</span></div>
+          <button class="ctrl-btn" id="btn-reset">重設</button>
+        </div>
+      </div>
+
+    </div>
+    <button class="sidebar-toggle" id="sidebar-toggle" title="收合/展開面板">&#x25C0;</button>
+  </aside>
+
+  <div id="dropzone" class="empty">
+    <div class="placeholder">
+      <div class="icon">&#x1F4F7;</div>
+      <p>拖曳檔案到此處</p>
+      <div class="hint">支援 JR2 / ARGB / JL / PNG 格式</div>
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="pixel-info"></div>
+<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG">
+
+<script>
+(() => {
+  // ── DOM refs ──────────────────────────────────────────────────
+  const dropzone = document.getElementById('dropzone');
+  const canvasWrap = document.getElementById('canvas-wrap');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const fileInput = document.getElementById('file-input');
+  const infoEl = document.getElementById('info');
+  const pixelInfo = document.getElementById('pixel-info');
+  const formatDetail = document.getElementById('format-detail');
+  const modeSelect = document.getElementById('mode');
+  const brightnessInput = document.getElementById('brightness');
+  const contrastInput = document.getElementById('contrast');
+  const gammaInput = document.getElementById('gamma');
+  const bval = document.getElementById('bval');
+  const cval = document.getElementById('cval');
+  const gval = document.getElementById('gval');
+  const inputWidth = document.getElementById('input-width');
+  const inputHeight = document.getElementById('input-height');
+  const bgStyleSelect = document.getElementById('bg-style');
+
+  // ── State ─────────────────────────────────────────────────────
+  let currentFormat = null; // 'jr2' | 'argb' | 'png'
+  let fileName = '';
+
+  // JR2 state
+  let rawData = null;
+  let imgWidth = 0, imgHeight = 0;
+  let modelStr = '';
+
+  // ARGB state
+  let argbImageData = null; // Uint8ClampedArray (RGBA)
+  let argbWidth = 0, argbHeight = 0;
+  let argbResult = null;
+  let argbArrayBuffer = null; // keep for re-parse
+  let isManuallyEdited = false;
+
+  // Pan/zoom state
+  let scale = 1, panX = 0, panY = 0;
+  let dragging = false;
+  let dragStartX, dragStartY, panStartX, panStartY;
+
+  // ══════════════════════════════════════════════════════════════
+  //  FILE LOADING
+  // ══════════════════════════════════════════════════════════════
+
+  function handleFile(file) {
+    if (!file) return;
+    fileName = file.name;
+    const ext = file.name.toLowerCase();
+
+    if (ext.endsWith('.png')) {
+      currentFormat = 'png';
+      handlePNG(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const buf = new Uint8Array(e.target.result);
+      if (ext.endsWith('.jr2')) {
+        currentFormat = 'jr2';
+        parseJR2(buf);
+      } else {
+        currentFormat = 'argb';
+        argbArrayBuffer = e.target.result;
+        parseARGB(e.target.result, file.name);
+      }
+      showCanvas();
+      updateUIForFormat();
+      fitToWindow();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function showCanvas() {
+    dropzone.classList.remove('empty');
+    canvasWrap.style.display = 'block';
+  }
+
+  // ── JR2 parsing (existing) ────────────────────────────────────
+
+  function parseJR2(buf) {
+    if (buf.length < 32) { alert('檔案太小，不是有效的 JR2 檔案'); return; }
+    const magic = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
+    if (magic !== 'JRAW') { alert('無效的 JR2 檔案 (magic: ' + magic + ')'); return; }
+
+    modelStr = String.fromCharCode(...buf.slice(4, 12));
+    imgHeight = (buf[12] << 8) | buf[13];
+    imgWidth = (buf[14] << 8) | buf[15];
+
+    const expectedSize = 32 + imgWidth * imgHeight;
+    if (buf.length < expectedSize) {
+      alert(`檔案大小不符: 預期 ${expectedSize} bytes, 實際 ${buf.length} bytes`);
+      return;
+    }
+
+    rawData = buf.slice(32, 32 + imgWidth * imgHeight);
+    infoEl.textContent = `${fileName} | ${modelStr} | ${imgWidth}×${imgHeight} | ${(buf.length / 1024).toFixed(0)} KB`;
+    render();
+  }
+
+  // ── JR2 rendering ─────────────────────────────────────────────
+
+  function render() {
+    if (!rawData) return;
+    const mode = modeSelect.value;
+    const brightness = parseInt(brightnessInput.value);
+    const contrast = parseFloat(contrastInput.value);
+    const gamma = parseFloat(gammaInput.value);
+    const useBinning = mode === 'binning' || mode === 'binning-stretch';
+    const useStretch = mode === 'stretch' || mode === 'binning-stretch';
+
+    let pixels, w, h;
+    if (useBinning) {
+      w = Math.floor(imgWidth / 2);
+      h = Math.floor(imgHeight / 2);
+      pixels = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const sy = y * 2, sx = x * 2;
+          const idx = sy * imgWidth + sx;
+          pixels[y * w + x] = (rawData[idx] + rawData[idx + 1] + rawData[idx + imgWidth] + rawData[idx + imgWidth + 1]) / 4;
+        }
+      }
+    } else {
+      w = imgWidth; h = imgHeight;
+      pixels = new Float32Array(w * h);
+      for (let i = 0; i < w * h; i++) pixels[i] = rawData[i];
+    }
+
+    let stretchMin = 0, stretchScale = 1;
+    if (useStretch) {
+      const sorted = Float32Array.from(pixels).sort();
+      const lo = sorted[Math.floor(sorted.length * 0.01)];
+      const hi = sorted[Math.floor(sorted.length * 0.99)];
+      stretchMin = lo;
+      stretchScale = (hi > lo) ? 255 / (hi - lo) : 1;
+    }
+
+    canvas.width = w; canvas.height = h;
+    const imageData = ctx.createImageData(w, h);
+    const d = imageData.data;
+    const invGamma = 1 / gamma;
+
+    for (let i = 0; i < w * h; i++) {
+      let v = pixels[i];
+      if (useStretch) v = (v - stretchMin) * stretchScale;
+      v = (v - 128) * contrast + 128 + brightness;
+      if (gamma !== 1) v = Math.pow(Math.max(0, v / 255), invGamma) * 255;
+      v = Math.max(0, Math.min(255, v)) | 0;
+      const off = i * 4;
+      d[off] = v; d[off + 1] = v; d[off + 2] = v; d[off + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  // ── PNG handling ──────────────────────────────────────────────
+
+  function handlePNG(file) {
+    const img = new Image();
+    img.onload = () => {
+      argbWidth = img.width; argbHeight = img.height;
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = argbWidth; tmpCanvas.height = argbHeight;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      tmpCtx.drawImage(img, 0, 0);
+      const id = tmpCtx.getImageData(0, 0, argbWidth, argbHeight);
+      argbImageData = new Uint8ClampedArray(id.data);
+
+      infoEl.textContent = `${fileName} | PNG | ${argbWidth}×${argbHeight}`;
+      showCanvas();
+      renderARGB();
+      updateUIForFormat();
+      fitToWindow();
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  ARGB FORMAT PARSING (from tools.js)
+  // ══════════════════════════════════════════════════════════════
+
+  function getDimensionsFromFileName(fn) {
+    const match = fn.match(/(\d+)[x_](\d+)/);
+    return match ? { width: parseInt(match[1]), height: parseInt(match[2]) } : null;
+  }
+
+  function getBytesPerPixel(symbol) {
+    switch (symbol) {
+      case "ARGB8888": return 4;
+      case "ARGB4444": case "ARGB1555": return 2;
+      case "ARGB2222": return 1;
+      case "IDXARGB8": return 1;
+      case "IDXARGB4": return 0.5;
+      case "IDXARGB2": return 0.25;
+      default: return 1;
+    }
+  }
+
+  function parsePixelColorWithIndex(dataView, baseOffset, pixelIndex, symbol, palette) {
+    try {
+      switch (symbol) {
+        case "ARGB8888": {
+          const o = baseOffset + pixelIndex * 4;
+          if (o + 3 >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          return { r: dataView.getUint8(o+2), g: dataView.getUint8(o+1), b: dataView.getUint8(o), a: dataView.getUint8(o+3) };
+        }
+        case "ARGB4444": {
+          const o = baseOffset + pixelIndex * 2;
+          if (o + 1 >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          const v = dataView.getUint16(o, true);
+          return { a:((v>>12)&0xF)*255/15, r:((v>>8)&0xF)*255/15, g:((v>>4)&0xF)*255/15, b:(v&0xF)*255/15 };
+        }
+        case "ARGB1555": {
+          const o = baseOffset + pixelIndex * 2;
+          if (o + 1 >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          const v = dataView.getUint16(o, true);
+          return { a:(v&0x8000)?255:0, r:((v>>10)&0x1F)*255/31, g:((v>>5)&0x1F)*255/31, b:(v&0x1F)*255/31 };
+        }
+        case "ARGB2222": {
+          const o = baseOffset + pixelIndex;
+          if (o >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          const v = dataView.getUint8(o);
+          return { a:((v>>6)&3)*255/3, r:((v>>4)&3)*255/3, g:((v>>2)&3)*255/3, b:(v&3)*255/3 };
+        }
+        case "IDXARGB8": {
+          const o = baseOffset + pixelIndex;
+          if (o >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          const idx = dataView.getUint8(o);
+          return palette && palette[idx] ? palette[idx] : { r:0,g:0,b:0,a:255 };
+        }
+        case "IDXARGB4": {
+          const byteOff = baseOffset + Math.floor(pixelIndex / 2);
+          if (byteOff >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          const pos = pixelIndex % 2;
+          const bv = dataView.getUint8(byteOff);
+          const idx = pos === 0 ? ((bv >> 4) & 0xF) : (bv & 0xF);
+          return palette && palette[idx] ? palette[idx] : { r:0,g:0,b:0,a:255 };
+        }
+        case "IDXARGB2": {
+          const byteOff = baseOffset + Math.floor(pixelIndex / 4);
+          if (byteOff >= dataView.byteLength) return { r:0,g:0,b:0,a:255 };
+          const pos = pixelIndex % 4;
+          const bv = dataView.getUint8(byteOff);
+          const idx = (bv >> (6 - pos * 2)) & 0x03;
+          return palette && palette[idx] ? palette[idx] : { r:0,g:0,b:0,a:255 };
+        }
+        default: return { r:0,g:0,b:0,a:255 };
+      }
+    } catch (e) { return { r:0,g:0,b:0,a:255 }; }
+  }
+
+  function parseJLHeader(dataView) {
+    try {
+      let symbol = "";
+      for (let i = 0; i < 8; i++) { const c = dataView.getUint8(i); if (c === 0) break; symbol += String.fromCharCode(c); }
+      return {
+        symbol,
+        imageWidth: dataView.getUint16(8, false),
+        imageHeight: dataView.getUint16(10, false),
+        iconWidth: dataView.getUint8(12),
+        iconHeight: dataView.getUint8(13),
+        scanMode: dataView.getUint8(14),
+        paletteOffset: dataView.getUint32(16, false),
+        bitmapIndexOffset: dataView.getUint32(20, false),
+        bitmapOffset: dataView.getUint32(24, false)
+      };
+    } catch (e) { return null; }
+  }
+
+  function parseJLPalette(dataView, symbol, paletteOffset) {
+    if (paletteOffset === 0) return null;
+    const palette = [];
+    let size = symbol === "IDXARGB8" ? 256 : symbol === "IDXARGB4" ? 16 : symbol === "IDXARGB2" ? 4 : 0;
+    if (!size) return null;
+    for (let i = 0; i < size; i++) {
+      const o = paletteOffset + i * 4;
+      palette.push({ r: dataView.getUint8(o+2), g: dataView.getUint8(o+1), b: dataView.getUint8(o), a: dataView.getUint8(o+3) });
+    }
+    return palette;
+  }
+
+  function parseLinearScan(dataView, header, rgba, palette) {
+    const { imageWidth: iw, imageHeight: ih, iconWidth: icW, iconHeight: icH, symbol, bitmapOffset } = header;
+    const iconsPerRow = Math.floor(iw / icW);
+    const total = iconsPerRow * Math.floor(ih / icH);
+    let offset = bitmapOffset;
+    const bpp = getBytesPerPixel(symbol);
+
+    for (let idx = 0; idx < total; idx++) {
+      const startX = (idx % iconsPerRow) * icW;
+      const startY = Math.floor(idx / iconsPerRow) * icH;
+      const iconDataSize = icW * icH * bpp;
+      if (offset + iconDataSize > dataView.byteLength) break;
+
+      for (let y = 0; y < icH; y++) {
+        for (let x = 0; x < icW; x++) {
+          const gx = startX + x, gy = startY + y;
+          if (gx < iw && gy < ih) {
+            const c = parsePixelColorWithIndex(dataView, offset, y * icW + x, symbol, palette);
+            const gi = (gy * iw + gx) * 4;
+            rgba[gi] = c.r; rgba[gi+1] = c.g; rgba[gi+2] = c.b; rgba[gi+3] = c.a;
+          }
+        }
+      }
+      offset += iconDataSize;
+      if (iconDataSize % 2 !== 0) offset++;
+    }
+    return rgba;
+  }
+
+  function parseCompactScan(dataView, header, rgba, palette) {
+    const { imageWidth: iw, imageHeight: ih, iconWidth: icW, iconHeight: icH, symbol, bitmapIndexOffset, bitmapOffset } = header;
+    const iconsPerRow = Math.floor(iw / icW);
+    const total = iconsPerRow * Math.floor(ih / icH);
+    rgba.fill(0);
+    if (bitmapIndexOffset === 0) return rgba;
+    const bpp = getBytesPerPixel(symbol);
+
+    for (let idx = 0; idx < total; idx++) {
+      const io = bitmapIndexOffset + idx * 8;
+      if (io + 8 > dataView.byteLength) break;
+
+      const bitmapDataOffset = dataView.getUint32(io, false);
+      const yOffset = dataView.getUint8(io + 4);
+      const bw = dataView.getUint8(io + 6);
+      const bh = dataView.getUint8(io + 7);
+
+      const startX = (idx % iconsPerRow) * icW;
+      const startY = Math.floor(idx / iconsPerRow) * icH;
+      const dataSize = Math.ceil(bw * bh * bpp);
+      if (bitmapDataOffset + dataSize > dataView.byteLength) continue;
+
+      for (let y = 0; y < bh; y++) {
+        for (let x = 0; x < bw; x++) {
+          const c = parsePixelColorWithIndex(dataView, bitmapDataOffset, y * bw + x, symbol, palette);
+          const dstX = x, dstY = yOffset + y;
+          if (dstX < icW && dstY < icH) {
+            const gx = startX + dstX, gy = startY + dstY;
+            if (gx < iw && gy < ih && c.a > 0) {
+              const gi = (gy * iw + gx) * 4;
+              rgba[gi] = c.r; rgba[gi+1] = c.g; rgba[gi+2] = c.b; rgba[gi+3] = c.a;
+            }
+          }
+        }
+      }
+    }
+    return rgba;
+  }
+
+  function parseRasterScan(dataView, header, rgba, palette) {
+    const { imageWidth: iw, imageHeight: ih, symbol, bitmapOffset } = header;
+    for (let i = 0; i < iw * ih; i++) {
+      const c = parsePixelColorWithIndex(dataView, bitmapOffset, i, symbol, palette);
+      rgba[i*4] = c.r; rgba[i*4+1] = c.g; rgba[i*4+2] = c.b; rgba[i*4+3] = c.a;
+    }
+    return rgba;
+  }
+
+  function convJLFormatToRGBA8888(buffer, fn) {
+    const dv = new DataView(buffer);
+    if (buffer.byteLength < 32) { alert("JL 格式檔案大小不足"); return null; }
+    const header = parseJLHeader(dv);
+    if (!header) return null;
+
+    const isIndexed = header.symbol.startsWith("IDXARGB");
+    const palette = isIndexed ? parseJLPalette(dv, header.symbol, header.paletteOffset) : null;
+    if (isIndexed && !palette) { alert("無法解析調色盤"); return null; }
+
+    const rgba = new Uint8ClampedArray(header.imageWidth * header.imageHeight * 4);
+    let imageData;
+    switch (header.scanMode) {
+      case 0: imageData = parseLinearScan(dv, header, rgba, palette); break;
+      case 1: imageData = parseCompactScan(dv, header, rgba, palette); break;
+      case 255: imageData = parseRasterScan(dv, header, rgba, palette); break;
+      default: alert(`不支援的掃描模式: ${header.scanMode}`); return null;
+    }
+
+    const scanModeText = header.scanMode === 0 ? "Linear" : header.scanMode === 1 ? "Compact" : header.scanMode === 255 ? "Raster" : `Unknown(${header.scanMode})`;
+    return {
+      imageData, width: header.imageWidth, height: header.imageHeight, source: 'header',
+      formatInfo: { symbol: header.symbol, iconWidth: header.iconWidth, iconHeight: header.iconHeight, scanMode: header.scanMode, scanModeText }
+    };
+  }
+
+  function convToRGBA8888(buffer, width, height, fn) {
+    const dv = new DataView(buffer);
+    const actual = buffer.byteLength;
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    let format = 'unknown';
+
+    if (fn.endsWith(".argb8888")) {
+      format = 'ARGB8888';
+      for (let i = 0; i < width * height; i++) {
+        if (i * 4 + 3 < actual) {
+          rgba[i*4] = dv.getUint8(i*4+2); rgba[i*4+1] = dv.getUint8(i*4+1);
+          rgba[i*4+2] = dv.getUint8(i*4); rgba[i*4+3] = dv.getUint8(i*4+3);
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fn.endsWith(".argb4444")) {
+      format = 'ARGB4444';
+      for (let i = 0; i < width * height; i++) {
+        if (i * 2 + 1 < actual) {
+          const v = dv.getUint16(i*2, true);
+          rgba[i*4] = ((v>>8)&0xF)*255/15; rgba[i*4+1] = ((v>>4)&0xF)*255/15;
+          rgba[i*4+2] = (v&0xF)*255/15; rgba[i*4+3] = ((v>>12)&0xF)*255/15;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fn.endsWith(".argb1555")) {
+      format = 'ARGB1555';
+      for (let i = 0; i < width * height; i++) {
+        if (i * 2 + 1 < actual) {
+          const v = dv.getUint16(i*2, true);
+          rgba[i*4] = ((v>>10)&0x1F)*255/31; rgba[i*4+1] = ((v>>5)&0x1F)*255/31;
+          rgba[i*4+2] = (v&0x1F)*255/31; rgba[i*4+3] = (v&0x8000)?255:0;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fn.endsWith(".rgb565")) {
+      format = 'RGB565';
+      for (let i = 0; i < width * height; i++) {
+        if (i * 2 + 1 < actual) {
+          const v = dv.getUint16(i*2, true);
+          rgba[i*4] = ((v>>11)&0x1F)*255/31; rgba[i*4+1] = ((v>>5)&0x3F)*255/63;
+          rgba[i*4+2] = (v&0x1F)*255/31; rgba[i*4+3] = 255;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fn.endsWith(".rgb332")) {
+      format = 'RGB332';
+      for (let i = 0; i < width * height; i++) {
+        if (i < actual) {
+          const v = dv.getUint8(i);
+          rgba[i*4] = ((v>>5)&7)*255/7; rgba[i*4+1] = ((v>>2)&7)*255/7;
+          rgba[i*4+2] = (v&3)*255/3; rgba[i*4+3] = 255;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fn.endsWith(".argb2222")) {
+      format = 'ARGB2222';
+      for (let i = 0; i < width * height; i++) {
+        if (i < actual) {
+          const v = dv.getUint8(i);
+          rgba[i*4] = ((v>>4)&3)*255/3; rgba[i*4+1] = ((v>>2)&3)*255/3;
+          rgba[i*4+2] = (v&3)*255/3; rgba[i*4+3] = ((v>>6)&3)*255/3;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else {
+      return null;
+    }
+    return { imageData: rgba, width, height, source: 'manual', formatInfo: { format } };
+  }
+
+  // ── ARGB unified entry ────────────────────────────────────────
+
+  function parseARGB(arrayBuffer, fn) {
+    const fnLower = fn.toLowerCase();
+    const isJL = fnLower.endsWith(".jlargb8888") || fnLower.endsWith(".jlargb4444") ||
+                 fnLower.endsWith(".jlargb1555") || fnLower.endsWith(".jlargb2222") ||
+                 fnLower.endsWith(".jlargb8") || fnLower.endsWith(".jlargb4") ||
+                 fnLower.endsWith(".jlargb2");
+
+    if (isJL) {
+      const result = convJLFormatToRGBA8888(arrayBuffer, fnLower);
+      if (!result) return;
+      argbResult = result;
+      argbImageData = result.imageData;
+      argbWidth = result.width; argbHeight = result.height;
+      inputWidth.value = argbWidth; inputHeight.value = argbHeight;
+
+      const fi = result.formatInfo;
+      infoEl.textContent = `${fileName} | ${fi.symbol} | ${argbWidth}×${argbHeight} | ${fi.scanModeText}`;
+    } else {
+      // Determine dimensions
+      let w, h, source;
+      if (isManuallyEdited && inputWidth.value && inputHeight.value) {
+        w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '手動輸入';
+      } else {
+        const dims = getDimensionsFromFileName(fn);
+        if (dims) {
+          w = dims.width; h = dims.height; source = '檔名';
+        } else if (inputWidth.value && inputHeight.value) {
+          w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框';
+        } else {
+          w = 128; h = 128; source = '預設';
+        }
+        inputWidth.value = w; inputHeight.value = h;
+      }
+
+      const result = convToRGBA8888(arrayBuffer, w, h, fnLower);
+      if (!result) { alert('不支援的檔案格式'); return; }
+      argbResult = result;
+      argbResult.source = source;
+      argbImageData = result.imageData;
+      argbWidth = w; argbHeight = h;
+
+      const fmt = result.formatInfo.format;
+      infoEl.textContent = `${fileName} | ${fmt} | ${argbWidth}×${argbHeight} | 來源: ${source}`;
+    }
+
+    renderARGB();
+  }
+
+  // ── ARGB rendering ────────────────────────────────────────────
+
+  function renderARGB() {
+    if (!argbImageData) return;
+    const w = argbWidth, h = argbHeight;
+    canvas.width = w; canvas.height = h;
+
+    const bgStyle = bgStyleSelect.value;
+    if (bgStyle === 'white') {
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    } else if (bgStyle === 'black') {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+    } else {
+      const ts = Math.max(1, Math.floor(Math.min(w, h) / 20));
+      for (let y = 0; y < h; y += ts) {
+        for (let x = 0; x < w; x += ts) {
+          ctx.fillStyle = ((Math.floor(x/ts) + Math.floor(y/ts)) % 2 === 0) ? '#fff' : '#ccc';
+          ctx.fillRect(x, y, ts, ts);
+        }
+      }
+    }
+
+    // Alpha blend
+    const bgData = ctx.getImageData(0, 0, w, h);
+    const out = bgData.data;
+    for (let i = 0; i < w * h; i++) {
+      const a = argbImageData[i*4+3] / 255;
+      out[i*4]   = argbImageData[i*4]   * a + out[i*4]   * (1-a);
+      out[i*4+1] = argbImageData[i*4+1] * a + out[i*4+1] * (1-a);
+      out[i*4+2] = argbImageData[i*4+2] * a + out[i*4+2] * (1-a);
+      out[i*4+3] = 255;
+    }
+    ctx.putImageData(bgData, 0, 0);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  UI CONTROL
+  // ══════════════════════════════════════════════════════════════
+
+  function updateUIForFormat() {
+    const isJR2 = currentFormat === 'jr2';
+    const isARGB = currentFormat === 'argb';
+    const isPNG = currentFormat === 'png';
+
+    document.getElementById('section-jr2').style.display = isJR2 ? '' : 'none';
+
+    // Show resolution inputs for ARGB without JL header
+    const isJL = isARGB && argbResult && argbResult.source === 'header';
+    document.getElementById('section-resolution').style.display = (isARGB && !isJL) ? '' : 'none';
+
+    // Show background for ARGB and PNG
+    document.getElementById('section-background').style.display = (isARGB || isPNG) ? '' : 'none';
+
+    // Update format detail
+    if (isJR2) {
+      formatDetail.textContent = `格式: JR2 RAW\n型號: ${modelStr}\n解析度: ${imgWidth}×${imgHeight}`;
+    } else if (isARGB && argbResult) {
+      const fi = argbResult.formatInfo;
+      let text = `格式: ${fi.symbol || fi.format}\n解析度: ${argbWidth}×${argbHeight}\n來源: ${argbResult.source}`;
+      if (fi.scanModeText) text += `\n掃描: ${fi.scanModeText}`;
+      if (fi.iconWidth) text += `\nIcon: ${fi.iconWidth}×${fi.iconHeight}`;
+      formatDetail.textContent = text;
+    } else if (isPNG) {
+      formatDetail.textContent = `格式: PNG\n解析度: ${argbWidth}×${argbHeight}`;
+    }
+    formatDetail.style.whiteSpace = 'pre-line';
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  ZOOM / PAN
+  // ══════════════════════════════════════════════════════════════
+
+  function applyTransform() {
+    canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  }
+
+  function getCanvasSize() {
+    return { w: canvas.width, h: canvas.height };
+  }
+
+  function fitToWindow() {
+    const { w: cw, h: ch } = getCanvasSize();
+    if (!cw || !ch) return;
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const sx = wrapRect.width / cw;
+    const sy = wrapRect.height / ch;
+    scale = Math.min(sx, sy, 1);
+    panX = (wrapRect.width - cw * scale) / 2;
+    panY = (wrapRect.height - ch * scale) / 2;
+    applyTransform();
+  }
+
+  function showOriginalSize() {
+    const { w: cw, h: ch } = getCanvasSize();
+    if (!cw || !ch) return;
+    scale = 1;
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    panX = (wrapRect.width - cw) / 2;
+    panY = (wrapRect.height - ch) / 2;
+    applyTransform();
+  }
+
+  canvasWrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvasWrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const oldScale = scale;
+    scale = Math.max(0.05, Math.min(50, scale * (e.deltaY < 0 ? 1.15 : 1/1.15)));
+    panX = mx - (mx - panX) * (scale / oldScale);
+    panY = my - (my - panY) * (scale / oldScale);
+    applyTransform();
+  }, { passive: false });
+
+  canvasWrap.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    panStartX = panX; panStartY = panY;
+    canvasWrap.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (dragging) {
+      panX = panStartX + (e.clientX - dragStartX);
+      panY = panStartY + (e.clientY - dragStartY);
+      applyTransform();
+    }
+
+    // Pixel info
+    if (canvasWrap.style.display !== 'none') {
+      const rect = canvas.getBoundingClientRect();
+      const cx = Math.floor((e.clientX - rect.left) / (rect.width / canvas.width));
+      const cy = Math.floor((e.clientY - rect.top) / (rect.height / canvas.height));
+      if (cx >= 0 && cy >= 0 && cx < canvas.width && cy < canvas.height) {
+        pixelInfo.style.display = 'block';
+        if (currentFormat === 'jr2') {
+          const mode = modeSelect.value;
+          const useBinning = mode === 'binning' || mode === 'binning-stretch';
+          let rawVal;
+          if (useBinning) {
+            const sx = cx * 2, sy = cy * 2, idx = sy * imgWidth + sx;
+            rawVal = `(${rawData[idx]},${rawData[idx+1]},${rawData[idx+imgWidth]},${rawData[idx+imgWidth+1]})`;
+          } else {
+            rawVal = rawData[cy * imgWidth + cx];
+          }
+          pixelInfo.textContent = `X:${cx} Y:${cy} | Raw: ${rawVal}`;
+        } else if (argbImageData) {
+          const idx = (cy * argbWidth + cx) * 4;
+          pixelInfo.textContent = `X:${cx} Y:${cy} | R:${argbImageData[idx]} G:${argbImageData[idx+1]} B:${argbImageData[idx+2]} A:${argbImageData[idx+3]}`;
+        }
+      } else {
+        pixelInfo.style.display = 'none';
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => { dragging = false; canvasWrap.style.cursor = ''; });
+
+  // ══════════════════════════════════════════════════════════════
+  //  DRAG & DROP
+  // ══════════════════════════════════════════════════════════════
+
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('dragover'); });
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault(); dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  dropzone.addEventListener('click', (e) => {
+    if (e.target.closest('#canvas-wrap')) return;
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+  // ══════════════════════════════════════════════════════════════
+  //  CONTROL EVENTS
+  // ══════════════════════════════════════════════════════════════
+
+  // JR2 controls
+  modeSelect.addEventListener('change', () => { if (currentFormat === 'jr2') { render(); fitToWindow(); } });
+  brightnessInput.addEventListener('input', () => { bval.textContent = brightnessInput.value; if (currentFormat === 'jr2') render(); });
+  contrastInput.addEventListener('input', () => { cval.textContent = parseFloat(contrastInput.value).toFixed(1); if (currentFormat === 'jr2') render(); });
+  gammaInput.addEventListener('input', () => { gval.textContent = parseFloat(gammaInput.value).toFixed(1); if (currentFormat === 'jr2') render(); });
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    brightnessInput.value = 0; bval.textContent = '0';
+    contrastInput.value = 1; cval.textContent = '1.0';
+    gammaInput.value = 1; gval.textContent = '1.0';
+    if (currentFormat === 'jr2') render();
+  });
+
+  // ARGB controls
+  inputWidth.addEventListener('input', () => {
+    isManuallyEdited = true;
+    if (currentFormat === 'argb' && argbArrayBuffer) { parseARGB(argbArrayBuffer, fileName); fitToWindow(); }
+  });
+  inputHeight.addEventListener('input', () => {
+    isManuallyEdited = true;
+    if (currentFormat === 'argb' && argbArrayBuffer) { parseARGB(argbArrayBuffer, fileName); fitToWindow(); }
+  });
+  bgStyleSelect.addEventListener('change', () => {
+    if (currentFormat === 'argb' || currentFormat === 'png') renderARGB();
+  });
+
+  // Shared controls
+  document.getElementById('btn-fit').addEventListener('click', fitToWindow);
+  document.getElementById('btn-100').addEventListener('click', showOriginalSize);
+  document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
+  window.addEventListener('resize', fitToWindow);
+
+  // ── Sidebar Toggle ──────────────────────────────────────────
+
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C0';
+    setTimeout(fitToWindow, 320);
+  });
+
+  // ── Theme Toggle ────────────────────────────────────────────
+
+  const btnTheme = document.getElementById('btn-theme');
+  function getPreferredTheme() {
+    const saved = localStorage.getItem('jl-viewer-theme');
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    btnTheme.textContent = theme === 'dark' ? '\u{1F319}' : '\u{2600}\u{FE0F}';
+    localStorage.setItem('jl-viewer-theme', theme);
+  }
+  applyTheme(getPreferredTheme());
+  btnTheme.addEventListener('click', () => {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+    if (!localStorage.getItem('jl-viewer-theme')) applyTheme(e.matches ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>
