@@ -322,7 +322,7 @@
 
   /* Side-by-side (dual) view */
   #compare-dual-view {
-    display: none; position: absolute; inset: 0; overflow: hidden;
+    display: none; flex: 1; overflow: hidden;
   }
   #compare-dual-view.active { display: flex; }
   .cmp-dual-panel {
@@ -390,7 +390,7 @@
 
   /* Split view */
   #compare-view {
-    display: none; position: absolute; inset: 0; overflow: hidden;
+    display: none; flex: 1; position: relative; overflow: hidden;
   }
   #compare-view.active { display: block; }
   #compare-canvas-wrap {
@@ -729,7 +729,7 @@
 </div>
 <div id="compare-pixel-info"></div>
 
-<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW">
+<input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW,.rgb888,.RGB,.rgb,.bi8">
 <input type="file" id="cmp-file-a" accept=".jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.png,.PNG,.jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW" style="display:none">
 <input type="file" id="cmp-file-b" accept=".jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.png,.PNG,.jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW" style="display:none">
 
@@ -796,6 +796,22 @@
     return YUV_EXTENSIONS.some(e => name.endsWith(e));
   }
 
+  // RAW 副檔名 → 預設像素格式對照
+  const RAW_EXT_FORMAT = {
+    '.raw': null, '.rgb888': 'RGB888', '.rgb': 'RGB888', '.bi8': 'JR2',
+    '.argb8888': null, '.argb4444': null, '.argb1555': null, '.argb2222': null,
+    '.rgb565': null, '.rgb332': null,
+  };
+  function isRawExtension(name) {
+    return Object.keys(RAW_EXT_FORMAT).some(e => name.endsWith(e));
+  }
+  function getRawDefaultFormat(name) {
+    for (const [ext, fmt] of Object.entries(RAW_EXT_FORMAT)) {
+      if (name.endsWith(ext) && fmt) return fmt;
+    }
+    return null;
+  }
+
   function handleFile(file) {
     if (!file) return;
     fileName = file.name;
@@ -817,9 +833,11 @@
         currentFormat = 'yuv';
         yuvRawArrayBuffer = e.target.result;
         parseYUV(e.target.result);
-      } else if (ext.endsWith('.raw')) {
+      } else if (isRawExtension(ext)) {
         currentFormat = 'raw';
         yuvRawArrayBuffer = e.target.result;
+        const defaultFmt = getRawDefaultFormat(ext);
+        if (defaultFmt) rawPixfmtSelect.value = defaultFmt;
         parseRAW(e.target.result);
       } else {
         currentFormat = 'argb';
@@ -973,6 +991,14 @@
     const lower = fn.toLowerCase();
     for (const [name, [w, h]] of Object.entries(KNOWN_RESOLUTIONS)) {
       if (lower.includes(name)) return { width: w, height: h };
+    }
+
+    // 4) 單一數字猜測高度 (如 cat_720.rgb888 → 1280×720)
+    const HEIGHT_MAP = { 144: 176, 240: 320, 288: 352, 480: 640, 576: 720, 600: 800, 720: 1280, 768: 1024, 1080: 1920, 1200: 1920, 1440: 2560, 2160: 3840 };
+    const single = fn.match(/[_\-](\d{3,4})\./);
+    if (single) {
+      const h = parseInt(single[1]);
+      if (HEIGHT_MAP[h]) return { width: HEIGHT_MAP[h], height: h };
     }
 
     return null;
@@ -1931,7 +1957,7 @@
     if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.bmp')) return 'image';
     if (ext.endsWith('.jr2')) return 'jr2';
     if (isYUVExtension(ext)) return 'yuv';
-    if (ext.endsWith('.raw')) return 'raw';
+    if (isRawExtension(ext)) return 'raw';
     const isJL = ext.endsWith(".jlargb8888") || ext.endsWith(".jlargb4444") ||
                   ext.endsWith(".jlargb1555") || ext.endsWith(".jlargb2222") ||
                   ext.endsWith(".jlargb8") || ext.endsWith(".jlargb4") || ext.endsWith(".jlargb2");
