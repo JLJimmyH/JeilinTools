@@ -49,11 +49,10 @@
             font-family: 'JetBrains Mono', 'Consolas', monospace;
             min-height: 100dvh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
         }
 
         /* Circuit Grid Background */
@@ -572,7 +571,7 @@
 
         /* Fullscreen Button */
         .fullscreen-btn {
-            position: fixed;
+            position: absolute;
             top: 20px;
             right: 20px;
             font-size: var(--font-sm);
@@ -591,7 +590,7 @@
 
         /* HUD Corner Decorations */
         .hud-corner {
-            position: fixed;
+            position: absolute;
             width: 60px;
             height: 60px;
             border: 2px solid var(--border);
@@ -627,17 +626,25 @@
             border-top: none;
         }
 
+        /* Main Layout Wrapper */
+        .main-layout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            width: 100%;
+        }
+
         /* QR Code Container */
         .qr-container {
-            position: fixed;
-            top: 50%;
-            right: 40px;
-            transform: translateY(-50%);
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 12px;
-            z-index: 100;
+            flex-shrink: 0;
         }
 
         .qr-wrapper {
@@ -695,17 +702,14 @@
 
         /* Keyboard Hints */
         .keyboard-hints {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
             display: flex;
             gap: 24px;
+            justify-content: center;
+            margin-top: 16px;
             font-size: var(--font-sm);
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            z-index: 100;
         }
 
         .keyboard-hint kbd {
@@ -720,6 +724,13 @@
         }
 
         /* Responsive */
+        @media (max-width: 900px) {
+            .main-layout {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+
         @media (max-width: 600px) {
             :root {
                 --font-hero: clamp(5rem, 32vw, 10rem);
@@ -750,14 +761,6 @@
             .cyber-header {
                 padding: 10px 16px;
                 font-size: 0.6rem;
-            }
-
-            .qr-container {
-                position: relative;
-                right: auto;
-                top: auto;
-                transform: none;
-                margin-top: 20px;
             }
 
             .controls {
@@ -814,6 +817,7 @@
     </style>
 </head>
 <body>
+  <div class="main-layout">
     <!-- HUD Corners -->
     <div class="hud-corner top-left"></div>
     <div class="hud-corner top-right"></div>
@@ -821,15 +825,6 @@
     <div class="hud-corner bottom-right"></div>
 
     <button class="fullscreen-btn cyber-chamfer-sm" onclick="toggleFullscreen()">[F] 全螢幕</button>
-
-    <!-- QR Code Display -->
-    <div class="qr-container" id="qrContainer">
-        <div class="qr-label"><span>&lt;</span> QR_SYNC <span>/&gt;</span></div>
-        <div class="qr-wrapper cyber-chamfer-sm">
-            <div id="qrcode"></div>
-        </div>
-        <div class="qr-data" id="qrData">--</div>
-    </div>
 
     <div class="clock-container">
         <!-- Cyber Header -->
@@ -883,12 +878,22 @@
         </div>
 
         <div class="status" id="status">SYSTEM_STANDBY</div>
+
+        <div class="keyboard-hints">
+            <span class="keyboard-hint"><kbd>SPACE</kbd> 開始/停止</span>
+            <span class="keyboard-hint"><kbd>F</kbd> 全螢幕</span>
+        </div>
     </div>
 
-    <div class="keyboard-hints">
-        <span class="keyboard-hint"><kbd>SPACE</kbd> 開始/停止</span>
-        <span class="keyboard-hint"><kbd>F</kbd> 全螢幕</span>
+    <!-- QR Code Display -->
+    <div class="qr-container" id="qrContainer">
+        <div class="qr-label"><span>&lt;</span> QR_SYNC <span>/&gt;</span></div>
+        <div class="qr-wrapper cyber-chamfer-sm">
+            <div id="qrcode"></div>
+        </div>
+        <div class="qr-data" id="qrData">--</div>
     </div>
+  </div>
 
     <script>
         let rafId = null;
