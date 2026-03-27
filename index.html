@@ -14,6 +14,7 @@
     --accent2: #ff00ff;
     --accent3: #00d4ff;
     --border: #2a2a3a;
+    --card-size: 280px;
   }
 
   body {
@@ -22,8 +23,10 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
+    overflow: auto;
     position: relative;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
   }
 
   /* Circuit grid background */
@@ -76,109 +79,124 @@
     bottom: -80px; left: 30%;
   }
 
-  .card {
-    padding: 3rem 3.5rem;
+  .hub {
     position: relative;
     z-index: 1;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 2.5rem;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .tool-link {
     display: flex;
     flex-direction: column;
     align-items: center;
-    text-decoration: none;
-    font-size: 4rem;
+    gap: 2.5rem;
+    padding: 3rem 2rem;
+    width: 100%;
+  }
+
+  .hub-title {
+    font-size: 1.6rem;
+    font-weight: bold;
+    letter-spacing: 0.3em;
     color: var(--accent);
-    position: relative;
-    text-shadow:
-      0 0 10px #00ff88,
-      0 0 20px #00ff8880,
-      0 0 40px #00ff8850,
-      0 0 80px #00ff8830;
-    animation: bearGlow 2s ease-in-out infinite, glitchBear 4s infinite;
-    transition: transform 0.15s;
-  }
-
-  .tool-link:nth-child(2) {
-    color: var(--accent2);
-    text-shadow:
-      0 0 10px #ff00ff,
-      0 0 20px #ff00ff80,
-      0 0 40px #ff00ff50,
-      0 0 80px #ff00ff30;
-    animation: magentaGlow 2s ease-in-out infinite, glitchBear 4s infinite 0.5s;
-  }
-
-  .tool-link:nth-child(3) {
-    color: var(--accent3);
-    text-shadow:
-      0 0 10px #00d4ff,
-      0 0 20px #00d4ff80,
-      0 0 40px #00d4ff50,
-      0 0 80px #00d4ff30;
-    animation: cyanGlow 2s ease-in-out infinite, glitchBear 4s infinite 1s;
-  }
-
-  .tool-label {
-    font-size: 0.7rem;
-    margin-top: 0.5rem;
-    letter-spacing: 0.15em;
+    text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff8860;
     text-transform: uppercase;
-    font-family: 'Courier New', monospace;
-    opacity: 0.7;
   }
 
-  .tool-link:hover {
-    filter: brightness(1.3);
-    transform: scale(1.15);
-  }
-  .tool-link:active {
-    transform: scale(0.96);
-  }
-
-  @keyframes bearGlow {
-    0%, 100% { text-shadow: 0 0 10px #00ff88, 0 0 20px #00ff8880, 0 0 40px #00ff8850, 0 0 80px #00ff8830; }
-    50% { text-shadow: 0 0 15px #00ff88, 0 0 30px #00ff88, 0 0 60px #00ff8880, 0 0 100px #00ff8850, 0 0 150px #00ff8820; }
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 900px;
   }
 
-  @keyframes magentaGlow {
-    0%, 100% { text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff80, 0 0 40px #ff00ff50, 0 0 80px #ff00ff30; }
-    50% { text-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff, 0 0 60px #ff00ff80, 0 0 100px #ff00ff50, 0 0 150px #ff00ff20; }
+  .tool-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    padding: 1.8rem 1rem 1.4rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(18, 18, 26, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: visible;
+    min-height: 180px;
   }
 
-  @keyframes cyanGlow {
-    0%, 100% { text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff80, 0 0 40px #00d4ff50, 0 0 80px #00d4ff30; }
-    50% { text-shadow: 0 0 15px #00d4ff, 0 0 30px #00d4ff, 0 0 60px #00d4ff80, 0 0 100px #00d4ff50, 0 0 150px #00d4ff20; }
+  .tool-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
   }
 
-  @keyframes glitchBear {
-    0%, 100% { transform: translate(0); }
-    2%  { transform: translate(-3px, 2px) skewX(-2deg); }
-    4%  { transform: translate(3px, -1px) skewX(1deg); }
-    6%  { transform: translate(0); }
-    50% { transform: translate(0); }
-    52% { transform: translate(2px, -3px) skewX(3deg); }
-    53% { transform: translate(-4px, 1px) skewX(-1deg); }
-    55% { transform: translate(0); }
+  .tool-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    border-color: var(--c);
+    box-shadow: 0 0 20px var(--cg), 0 0 40px var(--cg), inset 0 0 20px var(--cg);
+  }
+  .tool-card:hover::before {
+    opacity: 1;
+    background: radial-gradient(ellipse at center, var(--cg), transparent 70%);
+  }
+  .tool-card:active {
+    transform: scale(0.97);
+  }
+
+  /* Per-card accent colors */
+  .tool-card[data-accent="green"]  { --c: #00ff88; --cg: rgba(0,255,136,0.15); }
+  .tool-card[data-accent="magenta"] { --c: #ff00ff; --cg: rgba(255,0,255,0.15); }
+  .tool-card[data-accent="cyan"]   { --c: #00d4ff; --cg: rgba(0,212,255,0.15); }
+
+  .tool-emoji {
+    font-size: 2.8rem;
+    color: var(--c);
+    text-shadow:
+      0 0 10px var(--c),
+      0 0 20px var(--cg);
+    animation: emojiGlow 2.5s ease-in-out infinite;
+    margin-bottom: 0.8rem;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .tool-name {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c);
+    margin-bottom: 0.4rem;
+    font-weight: bold;
+  }
+
+  .tool-desc {
+    font-size: 0.68rem;
+    color: #888;
+    text-align: center;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+  }
+
+  @keyframes emojiGlow {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.3); }
   }
 
   /* ── Mobile ──────────────────────────────────────────────── */
   @media (max-width: 600px) {
-    body { overflow: auto; min-height: 100dvh; }
-    .card { padding: 1.5rem 1rem; }
-    .nav-links {
-      flex-direction: column;
-      gap: 2rem;
-    }
-    .tool-link { font-size: 2.5rem; }
-    .tool-label { font-size: 0.65rem; }
+    body { min-height: 100dvh; }
+    .hub { padding: 2rem 1rem; gap: 1.5rem; }
+    .hub-title { font-size: 1.2rem; }
+    .tool-grid { gap: 1rem; }
+    .tool-card { padding: 1.4rem 0.8rem 1.2rem; min-height: 150px; }
+    .tool-emoji { font-size: 2rem; }
     .ambient--green  { width: 250px; height: 250px; }
     .ambient--magenta { width: 200px; height: 200px; }
     .ambient--cyan    { width: 180px; height: 180px; }
@@ -186,11 +204,8 @@
 
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
-    .bear-link,
-    .bear-link::before,
-    .bear-link::after,
-    .card { animation: none; }
-    .bear-link { transition: none; }
+    .tool-emoji { animation: none; }
+    .tool-card { transition: none; }
   }
 </style>
 </head>
@@ -198,19 +213,24 @@
   <div class="ambient ambient--green"></div>
   <div class="ambient ambient--magenta"></div>
   <div class="ambient ambient--cyan"></div>
-  <div class="card">
-    <div class="nav-links">
-      <a href="JLViewer.html" class="tool-link">
-        ʕ•͡ᴥ•ʔ
-        <span class="tool-label">Viewer</span>
+
+  <div class="hub">
+    <div class="hub-title">// JL2O Tools</div>
+    <div class="tool-grid">
+      <a href="JLViewer.html" class="tool-card" data-accent="green">
+        <div class="tool-emoji">ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔ ก้้้้้้้้้้้ </div>
+        <div class="tool-name">Viewer</div>
+        <div class="tool-desc">影像檢視器，支援 RAW / YUV / JR2 等多種格式</div>
       </a>
-      <a href="frame-compare.html" class="tool-link">
-        (╯°□°)╯︵┻━┻
-        <span class="tool-label">Frame Compare</span>
+      <a href="frame-compare.html" class="tool-card" data-accent="magenta">
+        <div class="tool-emoji">(╯°□°)╯︵┻━┻</div>
+        <div class="tool-name">Frame Compare</div>
+        <div class="tool-desc">影片逐幀比較，支援並排、滑動、差異模式</div>
       </a>
-      <a href="ms_clock.html" class="tool-link">
-        (⏱ ͜ʖ⏱)
-        <span class="tool-label">Clock</span>
+      <a href="ms_clock.html" class="tool-card" data-accent="cyan">
+        <div class="tool-emoji">(⏱ ͜ʖ⏱)</div>
+        <div class="tool-name">Clock</div>
+        <div class="tool-desc">毫秒精度時鐘，相機延遲測試用</div>
       </a>
     </div>
   </div>

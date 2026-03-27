@@ -569,6 +569,26 @@
             animation: blink 1s step-end infinite;
         }
 
+        /* Home Button */
+        .home-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: var(--font-sm);
+            padding: 8px 16px;
+            z-index: 100;
+            border-color: var(--border);
+            color: var(--text-muted);
+            text-decoration: none;
+            display: inline-block;
+        }
+        .home-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: transparent;
+            box-shadow: var(--glow-sm);
+        }
+
         /* Fullscreen Button */
         .fullscreen-btn {
             position: absolute;
@@ -752,6 +772,11 @@
                 height: 24px;
             }
 
+            .home-btn {
+                top: 10px;
+                left: 10px;
+                padding: 6px 12px;
+            }
             .fullscreen-btn {
                 top: 10px;
                 right: 10px;
@@ -824,6 +849,7 @@
     <div class="hud-corner bottom-left"></div>
     <div class="hud-corner bottom-right"></div>
 
+    <a href="index.html" class="home-btn cyber-chamfer-sm" title="返回工具選單">← JL2O</a>
     <button class="fullscreen-btn cyber-chamfer-sm" onclick="toggleFullscreen()">[F] 全螢幕</button>
 
     <div class="clock-container">
