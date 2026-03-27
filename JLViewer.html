@@ -2523,8 +2523,8 @@
     cmpApplyTransform();
   }
 
-  // Synchronized pan/zoom for both dual panels
-  [cmpDualPanelA, cmpDualPanelB].forEach(panel => {
+  // Synchronized pan/zoom + drag-drop for both dual panels
+  [[cmpDualPanelA, 'a'], [cmpDualPanelB, 'b']].forEach(([panel, side]) => {
     panel.addEventListener('wheel', (e) => {
       e.preventDefault();
       const rect = panel.getBoundingClientRect();
@@ -2542,6 +2542,12 @@
       cmpDragStartX = e.clientX; cmpDragStartY = e.clientY;
       cmpPanStartX = cmpPanX; cmpPanStartY = cmpPanY;
       panel.style.cursor = 'grabbing';
+    });
+
+    panel.addEventListener('dragover', (e) => e.preventDefault());
+    panel.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files[0]) cmpLoadFile(e.dataTransfer.files[0], side);
     });
   });
 
