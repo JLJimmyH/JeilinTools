@@ -260,6 +260,11 @@
   .info-table td.info-value { color: var(--fg); text-align: right; word-break: break-all; font-weight: 500; }
   .info-table tr.info-sep td { padding-top: 6px; }
   .info-table .info-header td { color: var(--fg); font-weight: 600; font-size: 12px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .info-thumb { width: 100%; margin: 6px 0 2px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; transition: opacity .15s; }
+  .info-thumb:hover { opacity: .85; }
+  .thumb-lightbox { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.7); justify-content:center; align-items:center; cursor:zoom-out; }
+  .thumb-lightbox.show { display:flex; }
+  .thumb-lightbox img { border-radius:6px; box-shadow:0 4px 24px rgba(0,0,0,.5); image-rendering:pixelated; transition:transform .15s ease; transform-origin:center center; }
 
   /* ── Dropzone ───────────────────────────────────────────────── */
   #dropzone {
@@ -617,6 +622,7 @@
 </div>
 
 <div id="pixel-info"><div id="pixel-swatch"></div><span id="pixel-text"></span></div>
+<div class="thumb-lightbox" id="thumb-lightbox"><img id="thumb-lightbox-img"></div>
 
 <!-- ── Compare Mode Overlay ──────────────────────────────────── -->
 <div id="compare-overlay">
@@ -1035,7 +1041,7 @@
           const result = {};
 
           function readIFD(ifdOffset, tagHandlers) {
-            if (ifdOffset === 0 || tiffStart + ifdOffset + 2 > dv.byteLength) return;
+            if (ifdOffset === 0 || tiffStart + ifdOffset + 2 > dv.byteLength) return 0;
             const count = r16(ifdOffset);
             for (let i = 0; i < count; i++) {
               const entryOff = ifdOffset + 2 + i * 12;
@@ -1048,6 +1054,8 @@
                 tagHandlers[tag](type, cnt, valOff);
               }
             }
+            const nextOff = ifdOffset + 2 + count * 12;
+            return (tiffStart + nextOff + 4 <= dv.byteLength) ? r32(nextOff) : 0;
           }
 
           function getValueOffset(type, cnt, valOff) {
@@ -1059,7 +1067,7 @@
 
           // IFD0
           const ifd0Off = r32(4);
-          readIFD(ifd0Off, {
+          const ifd1Off = readIFD(ifd0Off, {
             0x010F: (t, c, v) => { result.make = rStr(getValueOffset(t, c, v), c); },
             0x0110: (t, c, v) => { result.model = rStr(getValueOffset(t, c, v), c); },
             0x0112: (t, c, v) => { result.orientation = r16(v); },
@@ -1112,6 +1120,23 @@
               const lat = toDec(latVals, latRef);
               const lon = toDec(lonVals, lonRef);
               result.gps = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+            }
+          }
+
+          // IFD1 — thumbnail
+          if (ifd1Off) {
+            let thumbOffset = 0, thumbLength = 0, thumbCompression = 0;
+            readIFD(ifd1Off, {
+              0x0103: (t, c, v) => { thumbCompression = r16(v); },
+              0x0201: (t, c, v) => { thumbOffset = r32(v); },
+              0x0202: (t, c, v) => { thumbLength = r32(v); },
+            });
+            if (thumbCompression === 6 && thumbOffset && thumbLength &&
+                tiffStart + thumbOffset + thumbLength <= ab.byteLength) {
+              const thumbBytes = new Uint8Array(ab, tiffStart + thumbOffset, thumbLength);
+              let bin = '';
+              for (let i = 0; i < thumbBytes.length; i++) bin += String.fromCharCode(thumbBytes[i]);
+              result.thumbnailDataUrl = 'data:image/jpeg;base64,' + btoa(bin);
             }
           }
 
@@ -1952,6 +1977,11 @@
         if (currentExifData.gps) rows.push(R('GPS', currentExifData.gps));
         if (currentExifData.exifWidth && currentExifData.exifHeight)
           rows.push(R('EXIF 尺寸', `${currentExifData.exifWidth}×${currentExifData.exifHeight}`));
+        if (currentExifData.thumbnailDataUrl) {
+          rows.push(SEP);
+          rows.push(HDR('縮圖'));
+          rows.push(`<tr><td colspan="2"><img class="info-thumb" src="${currentExifData.thumbnailDataUrl}" title="EXIF 縮圖 (點擊放大)" onclick="_openThumbLightbox(this.src)"></td></tr>`);
+        }
       }
     }
     if (rows.length && currentFileSize) {
@@ -2146,6 +2176,32 @@
   if (window.innerWidth <= 768) {
     sidebar.classList.add('collapsed');
     sidebarToggle.textContent = '\u25B6';
+  }
+
+  // ── Thumbnail Lightbox ───────────────────────────────────────
+  {
+    const lb = document.getElementById('thumb-lightbox');
+    const lbImg = document.getElementById('thumb-lightbox-img');
+    let lbScale = 1;
+    function openLightbox(src) {
+      lbImg.src = src;
+      lbScale = 1;
+      lbImg.style.transform = `scale(${lbScale})`;
+      lb.classList.add('show');
+    }
+    function closeLightbox() { lb.classList.remove('show'); }
+    lb.addEventListener('click', (e) => { if (e.target !== lbImg) closeLightbox(); });
+    lb.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      lbScale *= e.deltaY < 0 ? 1.2 : 1 / 1.2;
+      lbScale = Math.max(0.5, Math.min(20, lbScale));
+      lbImg.style.transform = `scale(${lbScale})`;
+    }, { passive: false });
+    document.addEventListener('keydown', (e) => {
+      if (!lb.classList.contains('show')) return;
+      if (e.key === 'Escape') closeLightbox();
+    });
+    window._openThumbLightbox = openLightbox;
   }
 
   // ── Theme Toggle ────────────────────────────────────────────
