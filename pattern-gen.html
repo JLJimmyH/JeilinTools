@@ -148,6 +148,11 @@ body::after {
 }
 .preset-btn:hover { border-color: var(--accent3); color: var(--accent3); }
 .preset-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow-sm); }
+.preset-btn[data-motion]::after {
+  content: '▶'; font-size: 0.5rem; color: var(--accent2);
+  position: absolute; top: 4px; right: 6px;
+}
+.preset-btn[data-motion] { position: relative; }
 .preset-icon { font-size: 1.4rem; display: block; margin-bottom: 0.3rem; line-height: 1.2; }
 
 /* Canvas area — clean, no overlays */
@@ -228,6 +233,24 @@ body::after {
       <button class="preset-btn" data-type="deadPixel">
         <span class="preset-icon">⊹</span>Dead Pixel Grid
       </button>
+      <button class="preset-btn" data-type="movingBar" data-motion>
+        <span class="preset-icon">▮→</span>Moving Bar
+      </button>
+      <button class="preset-btn" data-type="scrollStripes" data-motion>
+        <span class="preset-icon">≡↓</span>Scroll Stripes
+      </button>
+      <button class="preset-btn" data-type="bouncingBox" data-motion>
+        <span class="preset-icon">◻↗</span>Bouncing Box
+      </button>
+      <button class="preset-btn" data-type="rollingShutter" data-motion>
+        <span class="preset-icon">▤↕</span>Rolling Shutter
+      </button>
+      <button class="preset-btn" data-type="flashAlternate" data-motion>
+        <span class="preset-icon">◼◻</span>Flash B/W
+      </button>
+      <button class="preset-btn" data-type="motionGrid" data-motion>
+        <span class="preset-icon">⊞→</span>Motion Grid
+      </button>
     </div>
   </div>
 
@@ -261,6 +284,7 @@ body::after {
       <!-- Pattern-specific params populated dynamically -->
       <div id="extraParams" class="controls" style="display:contents;"></div>
       <button class="btn" onclick="generate()">&#x27F3; 產生</button>
+      <button class="btn btn--magenta" id="btnStop" onclick="stopAnimation()" style="display:none;">&#x25A0; 停止</button>
     </div>
   </div>
 
@@ -352,6 +376,39 @@ const EXTRA_PARAMS = {
   ],
   deadPixel: [
     { id: 'dpSize', label: '格子大小 (px)', type: 'number', value: 20, min: 4, max: 100 },
+  ],
+  movingBar: [
+    { id: 'mbSpeed', label: '速度 (px/frame)', type: 'number', value: 4, min: 1, max: 60 },
+    { id: 'mbWidth', label: '條寬 (px)', type: 'number', value: 80, min: 4, max: 500 },
+    { id: 'mbDir', label: '方向', type: 'select', options: [
+      { value: 'h', text: '水平 →' }, { value: 'v', text: '垂直 ↓' },
+    ]},
+  ],
+  scrollStripes: [
+    { id: 'ssSpeed', label: '速度 (px/frame)', type: 'number', value: 2, min: 1, max: 30 },
+    { id: 'ssWidth', label: '條紋寬 (px)', type: 'number', value: 40, min: 4, max: 200 },
+    { id: 'ssDir', label: '方向', type: 'select', options: [
+      { value: 'h', text: '水平捲動' }, { value: 'v', text: '垂直捲動' },
+    ]},
+  ],
+  bouncingBox: [
+    { id: 'bbSpeed', label: '速度 (px/frame)', type: 'number', value: 3, min: 1, max: 30 },
+    { id: 'bbSize', label: '方塊大小 (px)', type: 'number', value: 100, min: 20, max: 400 },
+  ],
+  rollingShutter: [
+    { id: 'rsSpeed', label: '速度 (px/frame)', type: 'number', value: 6, min: 1, max: 40 },
+    { id: 'rsBands', label: '色帶數', type: 'number', value: 4, min: 2, max: 12 },
+  ],
+  flashAlternate: [
+    { id: 'faInterval', label: '切換間隔 (ms)', type: 'number', value: 500, min: 16, max: 5000 },
+    { id: 'faMode', label: '模式', type: 'select', options: [
+      { value: 'bw', text: '黑白交替' }, { value: 'rgb', text: 'R→G→B 循環' },
+      { value: 'rgbw', text: 'R→G→B→W→K' },
+    ]},
+  ],
+  motionGrid: [
+    { id: 'mgSpeed', label: '速度 (px/frame)', type: 'number', value: 2, min: 1, max: 20 },
+    { id: 'mgSize', label: '格子大小 (px)', type: 'number', value: 60, min: 10, max: 200 },
   ],
 };
 
@@ -770,6 +827,252 @@ function genDeadPixel(w, h) {
   ctx.fillText(`Grid: ${size}px | ${w}×${h}`, 8, 8);
 }
 
+// ─── Animation Engine ──────────────────────────────────
+let animId = null;
+let animState = {};
+const MOTION_TYPES = new Set(['movingBar','scrollStripes','bouncingBox','rollingShutter','flashAlternate','motionGrid']);
+
+function isMotion(type) { return MOTION_TYPES.has(type); }
+
+function stopAnimation() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  document.getElementById('btnStop').style.display = 'none';
+}
+
+function startAnimation(drawFn, w, h) {
+  stopAnimation();
+  document.getElementById('btnStop').style.display = '';
+  animState = { t: 0, lastTime: 0, frameCount: 0 };
+  // bouncing box state
+  animState.bx = w * 0.1; animState.by = h * 0.1;
+  animState.bvx = 1; animState.bvy = 1;
+  // flash state
+  animState.flashIdx = 0; animState.lastFlash = 0;
+
+  function loop(ts) {
+    animState.frameCount++;
+    animState.ts = ts;
+    drawFn(w, h, animState);
+    animState.t++;
+    animId = requestAnimationFrame(loop);
+  }
+  animId = requestAnimationFrame(loop);
+}
+
+// ─── Motion Pattern Generators ─────────────────────────
+
+function genMovingBar(w, h, st) {
+  const speed = param('mbSpeed', 4);
+  const barW = param('mbWidth', 80);
+  const dir = param('mbDir', 'h');
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  const total = dir === 'h' ? w : h;
+  const pos = (st.t * speed) % (total + barW) - barW;
+
+  ctx.fillStyle = '#fff';
+  if (dir === 'h') {
+    ctx.fillRect(pos, 0, barW, h);
+  } else {
+    ctx.fillRect(0, pos, w, barW);
+  }
+
+  // Frame counter + speed label
+  drawMotionHUD(w, h, st, `${speed} px/f · ${dir === 'h' ? '水平' : '垂直'}`);
+}
+
+function genScrollStripes(w, h, st) {
+  const speed = param('ssSpeed', 2);
+  const stripeW = param('ssWidth', 40);
+  const dir = param('ssDir', 'h');
+
+  const offset = (st.t * speed) % (stripeW * 2);
+
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const pos = dir === 'v' ? x : y;
+      const v = (Math.floor((pos + offset) / stripeW) % 2) === 0 ? 255 : 0;
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  drawMotionHUD(w, h, st, `${speed} px/f · stripe ${stripeW}px`);
+}
+
+function genBouncingBox(w, h, st) {
+  const speed = param('bbSpeed', 3);
+  const size = param('bbSize', 100);
+
+  // Update position
+  st.bx += st.bvx * speed;
+  st.by += st.bvy * speed;
+  if (st.bx <= 0 || st.bx + size >= w) { st.bvx *= -1; st.bx = Math.max(0, Math.min(st.bx, w - size)); }
+  if (st.by <= 0 || st.by + size >= h) { st.bvy *= -1; st.by = Math.max(0, Math.min(st.by, h - size)); }
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  // Trail (faint cross lines showing trajectory)
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(st.bx + size / 2, 0); ctx.lineTo(st.bx + size / 2, h);
+  ctx.moveTo(0, st.by + size / 2); ctx.lineTo(w, st.by + size / 2);
+  ctx.stroke();
+
+  // Box
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(st.bx, st.by, size, size);
+
+  // Center dot
+  ctx.fillStyle = '#f00';
+  ctx.beginPath();
+  ctx.arc(st.bx + size / 2, st.by + size / 2, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  drawMotionHUD(w, h, st, `${speed} px/f · ${size}px box`);
+}
+
+function genRollingShutter(w, h, st) {
+  const speed = param('rsSpeed', 6);
+  const bands = param('rsBands', 4);
+  const bandH = h / bands;
+
+  const colors = [];
+  for (let i = 0; i < bands; i++) {
+    const hue = (i / bands) * 360;
+    colors.push(hsl2rgb(hue, 1, 0.5));
+  }
+
+  // Each band scrolls horizontally at same speed but staggered
+  for (let i = 0; i < bands; i++) {
+    const offset = (st.t * speed + i * 30) % w;
+    const y0 = Math.round(i * bandH);
+    const bh = Math.round(bandH);
+    const [r, g, b] = colors[i];
+
+    // Draw the band as two halves (wrapping)
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(0, y0, w, bh);
+
+    // Dark half on the left of the moving edge
+    ctx.fillStyle = `rgb(${r >> 1},${g >> 1},${b >> 1})`;
+    ctx.fillRect(0, y0, offset, bh);
+
+    // White moving edge line
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(offset - 2, y0, 4, bh);
+  }
+
+  // Horizontal reference lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  for (let i = 1; i < bands; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, i * bandH); ctx.lineTo(w, i * bandH);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  drawMotionHUD(w, h, st, `${speed} px/f · ${bands} bands · rolling shutter test`);
+}
+
+function genFlashAlternate(w, h, st) {
+  const interval = param('faInterval', 500);
+  const mode = param('faMode', 'bw');
+
+  const elapsed = st.ts - st.lastFlash;
+  if (elapsed >= interval || st.lastFlash === 0) {
+    st.flashIdx++;
+    st.lastFlash = st.ts;
+  }
+
+  let r = 0, g = 0, b = 0;
+  if (mode === 'bw') {
+    const v = st.flashIdx % 2 === 0 ? 0 : 255;
+    r = g = b = v;
+  } else if (mode === 'rgb') {
+    const ci = st.flashIdx % 3;
+    r = ci === 0 ? 255 : 0;
+    g = ci === 1 ? 255 : 0;
+    b = ci === 2 ? 255 : 0;
+  } else if (mode === 'rgbw') {
+    const colors = [[255,0,0],[0,255,0],[0,0,255],[255,255,255],[0,0,0]];
+    const c = colors[st.flashIdx % colors.length];
+    r = c[0]; g = c[1]; b = c[2];
+  }
+
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0, 0, w, h);
+
+  // Minimal HUD — small so it doesn't affect the full-screen flash
+  const fontSize = Math.max(12, Math.round(h * 0.018));
+  ctx.fillStyle = (r + g + b) > 380 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+  ctx.font = `${fontSize}px Courier New`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(`#${st.flashIdx} · ${interval}ms`, 8, 8);
+}
+
+function genMotionGrid(w, h, st) {
+  const speed = param('mgSpeed', 2);
+  const size = param('mgSize', 60);
+
+  const offsetX = (st.t * speed) % size;
+  const offsetY = (st.t * speed * 0.7) % size;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+  // Vertical lines (scrolling right)
+  for (let x = -size + offsetX; x < w + size; x += size) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  // Horizontal lines (scrolling down)
+  for (let y = -size + offsetY; y < h + size; y += size) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Fixed center crosshair (stationary reference)
+  ctx.strokeStyle = '#c00'; ctx.lineWidth = 2;
+  const cx = w / 2, cy = h / 2, cr = 30;
+  ctx.beginPath();
+  ctx.moveTo(cx - cr, cy); ctx.lineTo(cx + cr, cy);
+  ctx.moveTo(cx, cy - cr); ctx.lineTo(cx, cy + cr);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr * 0.7, 0, Math.PI * 2);
+  ctx.stroke();
+
+  drawMotionHUD(w, h, st, `${speed} px/f · grid ${size}px`);
+}
+
+function drawMotionHUD(w, h, st, info) {
+  const fontSize = Math.max(12, Math.round(h * 0.02));
+  const pad = 8;
+  // Semi-transparent background for readability
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, h - fontSize - pad * 2, w, fontSize + pad * 2);
+
+  ctx.fillStyle = '#0f0';
+  ctx.font = `bold ${fontSize}px Courier New`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText(`Frame: ${st.frameCount}`, pad, h - pad);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(info, w / 2, h - pad);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#0ff';
+  const fps = st.ts > 0 ? Math.round(st.frameCount / (st.ts / 1000)) : 0;
+  ctx.fillText(`${fps} fps`, w - pad, h - pad);
+}
+
 // ─── HSL → RGB ─────────────────────────────────────────
 function hsl2rgb(h, s, l) {
   h /= 360;
@@ -795,15 +1098,28 @@ const generators = {
   colorChecker: genColorChecker,
   slantedEdge: genSlantedEdge,
   deadPixel: genDeadPixel,
+  movingBar: genMovingBar,
+  scrollStripes: genScrollStripes,
+  bouncingBox: genBouncingBox,
+  rollingShutter: genRollingShutter,
+  flashAlternate: genFlashAlternate,
+  motionGrid: genMotionGrid,
 };
 
 function generate() {
+  stopAnimation();
   const w = +document.getElementById('canvasW').value;
   const h = +document.getElementById('canvasH').value;
   canvas.width = w; canvas.height = h;
   ctx.clearRect(0, 0, w, h);
-  generators[currentType](w, h);
-  document.getElementById('exportInfo').textContent = `${w} × ${h} · ${currentType}`;
+
+  if (isMotion(currentType)) {
+    startAnimation(generators[currentType], w, h);
+    document.getElementById('exportInfo').textContent = `${w} × ${h} · ${currentType} [動態]`;
+  } else {
+    generators[currentType](w, h);
+    document.getElementById('exportInfo').textContent = `${w} × ${h} · ${currentType}`;
+  }
 }
 
 // ─── Export ────────────────────────────────────────────
