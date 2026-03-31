@@ -6,7 +6,7 @@
     <title>CYBER_CLOCK // 相機延遲測試</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
@@ -35,6 +35,209 @@
             --glow-lg: 0 0 20px var(--accent), 0 0 40px rgba(0, 255, 136, 0.6), 0 0 80px rgba(0, 255, 136, 0.4);
             --glow-secondary: 0 0 10px var(--accent-secondary), 0 0 20px rgba(255, 0, 255, 0.5);
             --glow-tertiary: 0 0 10px var(--accent-tertiary), 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        /* === Theme: 暖色簡約 === */
+        [data-theme="warm"] {
+            --bg: #1a1d23;
+            --bg-card: #22262e;
+            --bg-muted: #2a2f38;
+            --text: #e8e8e8;
+            --text-muted: #8a919c;
+            --border: #3a4050;
+            --accent: #f0a030;
+            --accent-secondary: #e07020;
+            --accent-tertiary: #f0c848;
+            --destructive: #e04040;
+            --glow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --glow-md: 0 2px 8px rgba(0,0,0,0.4);
+            --glow-lg: 0 4px 16px rgba(0,0,0,0.5);
+            --glow-secondary: 0 1px 3px rgba(0,0,0,0.3);
+            --glow-tertiary: 0 1px 3px rgba(0,0,0,0.3);
+            --theme-font: 'IBM Plex Mono', 'Consolas', monospace;
+            --theme-font-display: 'Orbitron', 'IBM Plex Mono', sans-serif;
+            --theme-radius: 6px;
+        }
+
+        /* === Theme: 冷色簡約 === */
+        [data-theme="cool"] {
+            --bg: #f4f5f7;
+            --bg-card: #ffffff;
+            --bg-muted: #e8eaed;
+            --text: #1a1a2e;
+            --text-muted: #6b7280;
+            --border: #d1d5db;
+            --accent: #2563eb;
+            --accent-secondary: #7c3aed;
+            --accent-tertiary: #0891b2;
+            --destructive: #dc2626;
+            --glow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --glow-md: 0 2px 8px rgba(0,0,0,0.15);
+            --glow-lg: 0 4px 16px rgba(0,0,0,0.2);
+            --glow-secondary: 0 1px 3px rgba(0,0,0,0.1);
+            --glow-tertiary: 0 1px 3px rgba(0,0,0,0.1);
+            --theme-font: 'Inter', system-ui, sans-serif;
+            --theme-font-display: 'Inter', system-ui, sans-serif;
+            --theme-radius: 8px;
+        }
+
+        /* --- Non-cyber themes: disable visual effects --- */
+        [data-theme="warm"] body::before,
+        [data-theme="warm"] body::after,
+        [data-theme="cool"] body::before,
+        [data-theme="cool"] body::after {
+            display: none !important;
+        }
+
+        [data-theme="warm"] .cyber-glitch::before,
+        [data-theme="warm"] .cyber-glitch::after,
+        [data-theme="cool"] .cyber-glitch::before,
+        [data-theme="cool"] .cyber-glitch::after {
+            display: none !important;
+        }
+
+        [data-theme="warm"] .cyber-glitch,
+        [data-theme="cool"] .cyber-glitch {
+            animation: none !important;
+        }
+
+        [data-theme="warm"] .time-display,
+        [data-theme="cool"] .time-display {
+            text-shadow: none;
+        }
+
+        [data-theme="warm"] .ms-display {
+            text-shadow: none;
+        }
+
+        [data-theme="cool"] .ms-display {
+            text-shadow: none;
+            color: var(--accent);
+        }
+
+        /* Rounded corners instead of chamfer */
+        [data-theme="warm"] .cyber-chamfer,
+        [data-theme="cool"] .cyber-chamfer {
+            clip-path: none !important;
+            border-radius: var(--theme-radius);
+        }
+
+        [data-theme="warm"] .cyber-chamfer-sm,
+        [data-theme="cool"] .cyber-chamfer-sm {
+            clip-path: none !important;
+            border-radius: var(--theme-radius);
+        }
+
+        /* Clean header */
+        [data-theme="warm"] .cyber-header,
+        [data-theme="cool"] .cyber-header {
+            background: var(--bg-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--theme-radius);
+        }
+
+        [data-theme="warm"] .cyber-header::before,
+        [data-theme="warm"] .cyber-header::after,
+        [data-theme="cool"] .cyber-header::before,
+        [data-theme="cool"] .cyber-header::after {
+            display: none;
+        }
+
+        [data-theme="warm"] .cyber-header-blink,
+        [data-theme="cool"] .cyber-header-blink {
+            display: none;
+        }
+
+        [data-theme="warm"] .cyber-header-title,
+        [data-theme="cool"] .cyber-header-title {
+            text-shadow: none;
+            color: var(--accent);
+        }
+
+        /* Hide HUD corners */
+        [data-theme="warm"] .hud-corner,
+        [data-theme="cool"] .hud-corner {
+            display: none;
+        }
+
+        /* Override fonts */
+        [data-theme="warm"] body,
+        [data-theme="warm"] button,
+        [data-theme="warm"] input {
+            font-family: var(--theme-font);
+        }
+        [data-theme="warm"] .time-display,
+        [data-theme="warm"] .ms-display {
+            font-family: var(--theme-font-display);
+        }
+
+        [data-theme="cool"] body,
+        [data-theme="cool"] button,
+        [data-theme="cool"] input {
+            font-family: var(--theme-font);
+        }
+        [data-theme="cool"] .time-display,
+        [data-theme="cool"] .ms-display {
+            font-family: var(--theme-font-display);
+            font-weight: 700;
+        }
+
+        /* Progress bar gradient overrides */
+        [data-theme="warm"] .progress-fill {
+            background: linear-gradient(90deg, #f0a030, #f0c848, #e07020);
+        }
+
+        [data-theme="cool"] .progress-fill {
+            background: linear-gradient(90deg, #2563eb, #0891b2, #7c3aed);
+        }
+
+        /* === Theme Selector (inside header) === */
+        .theme-selector {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid var(--border);
+        }
+
+        .theme-selector label {
+            font-size: inherit;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        .theme-selector select {
+            font-family: inherit;
+            font-size: inherit;
+            padding: 2px 6px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 18px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 4px center;
+            background-size: 8px;
+        }
+
+        .theme-selector select option {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+
+        .theme-selector select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .theme-selector select:hover {
+            border-color: var(--accent);
         }
 
         * {
@@ -121,6 +324,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 24px;
             padding: 12px 24px;
@@ -783,6 +987,17 @@
                 padding: 6px 12px;
             }
 
+            .theme-selector {
+                margin-left: 0;
+                padding-left: 0;
+                border-left: none;
+                margin-top: 4px;
+                padding-top: 4px;
+                border-top: 1px solid var(--border);
+                justify-content: center;
+                width: 100%;
+            }
+
             .cyber-header {
                 padding: 10px 16px;
                 font-size: 0.6rem;
@@ -860,6 +1075,14 @@
             <span class="cyber-header-version">v2.1</span>
             <span class="cyber-header-bracket">]]</span>
             <span class="cyber-header-blink">_</span>
+            <div class="theme-selector">
+                <label>風格</label>
+                <select id="themeSelect" onchange="switchTheme(this.value)">
+                    <option value="warm">暖色簡約</option>
+                    <option value="cyber">Cyberpunk</option>
+                    <option value="cool">冷色簡約</option>
+                </select>
+            </div>
         </div>
 
         <div class="time-display cyber-glitch" data-text="00:00:00" id="timeDisplay">00:00:00</div>
@@ -1059,8 +1282,40 @@
             }
         }
 
+        // Theme switching
+        function switchTheme(theme) {
+            if (theme === 'cyber') {
+                document.documentElement.removeAttribute('data-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+            localStorage.setItem('ms_clock_theme', theme);
+
+            // Update QR code colors per theme
+            const colorMap = {
+                cyber: { dark: '#00d4ff', light: '#12121a' },
+                warm:  { dark: '#f0a030', light: '#22262e' },
+                cool:  { dark: '#2563eb', light: '#ffffff' }
+            };
+            const c = colorMap[theme] || colorMap.cyber;
+            if (qrCode) {
+                qrCode._htOption.colorDark = c.dark;
+                qrCode._htOption.colorLight = c.light;
+                qrCode.clear();
+                qrCode.makeCode(lastQrText || 'STANDBY');
+            }
+        }
+
+        // Restore saved theme
+        function restoreTheme() {
+            const saved = localStorage.getItem('ms_clock_theme') || 'warm';
+            document.getElementById('themeSelect').value = saved;
+            switchTheme(saved);
+        }
+
         // 初始化
         initQRCode();
+        restoreTheme();
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
