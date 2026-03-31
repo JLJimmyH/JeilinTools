@@ -355,6 +355,11 @@ document.querySelector('.controls').addEventListener('change', e => {
 
 // ─── Extra param definitions per pattern ───────────────
 const EXTRA_PARAMS = {
+  colorBars: [
+    { id: 'cbLevel', label: '電平', type: 'select', options: [
+      { value: '75', text: '75% (SMPTE)' }, { value: '100', text: '100%' },
+    ]},
+  ],
   checkerboard: [
     { id: 'cbSize', label: '格子大小 (px)', type: 'number', value: 40, min: 2, max: 512 },
   ],
@@ -471,10 +476,11 @@ function param(id, fallback) {
 // ─── Pattern Generators ────────────────────────────────
 
 function genColorBars(w, h) {
-  // SMPTE-style color bars: White, Yellow, Cyan, Green, Magenta, Red, Blue, Black
+  const v = param('cbLevel', '75') === '100' ? 255 : 192;
+  // Color bars: White, Yellow, Cyan, Green, Magenta, Red, Blue, Black
   const colors = [
-    [192,192,192],[192,192,0],[0,192,192],[0,192,0],
-    [192,0,192],[192,0,0],[0,0,192],[0,0,0]
+    [v,v,v],[v,v,0],[0,v,v],[0,v,0],
+    [v,0,v],[v,0,0],[0,0,v],[0,0,0]
   ];
   const barW = w / colors.length;
   const imgData = ctx.createImageData(w, h);
@@ -489,10 +495,10 @@ function genColorBars(w, h) {
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // Bottom section: reverse bars + black/white references (like SMPTE)
+  // Bottom section: reverse bars + black/white references
   const bottomH = Math.round(h * 0.08);
   const bottomY = h - bottomH;
-  const revColors = [[0,0,192],[0,0,0],[192,0,192],[0,0,0],[0,192,192],[0,0,0],[192,192,192]];
+  const revColors = [[0,0,v],[0,0,0],[v,0,v],[0,0,0],[0,v,v],[0,0,0],[v,v,v]];
   const revBarW = w / revColors.length;
   for (let y = bottomY; y < h; y++) {
     for (let x = 0; x < w; x++) {
