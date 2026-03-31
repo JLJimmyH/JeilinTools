@@ -662,7 +662,7 @@
         <div class="panel-section" id="cmp-section-info">
           <div class="panel-title">格式資訊</div>
           <div class="panel-body">
-            <div class="format-text" id="cmp-format-detail" style="white-space:pre-line">尚未載入檔案</div>
+            <div class="format-text" id="cmp-format-detail">尚未載入檔案</div>
           </div>
         </div>
         <div class="panel-section" id="cmp-section-resolution" style="display:none">
@@ -2577,28 +2577,54 @@
 
   // ── Load image as RGBA ───────────────────────────────────────
 
+  function extractFileMeta(arrayBuffer, fileName) {
+    const ext = fileName.toLowerCase();
+    const meta = { fileSize: arrayBuffer.byteLength };
+    if (ext.endsWith('.jpg') || ext.endsWith('.jpeg')) {
+      meta.exif = parseExifFromArrayBuffer(arrayBuffer);
+    } else if (ext.endsWith('.png')) {
+      meta.pngInfo = parsePngIHDR(arrayBuffer);
+    }
+    if (ext.endsWith('.jr2')) {
+      const u8 = new Uint8Array(arrayBuffer);
+      if (u8.length >= 32 && String.fromCharCode(u8[0],u8[1],u8[2],u8[3]) === 'JRAW') {
+        meta.jr2Model = String.fromCharCode(...u8.slice(4, 12)).replace(/\0+$/, '');
+        meta.jr2Reserved = Array.from(u8.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      }
+    }
+    return meta;
+  }
+
   function loadImageAsRGBA(file, params = {}) {
     const fmt = detectFormat(file.name);
     return new Promise((resolve, reject) => {
       if (fmt === 'image') {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const w = img.width, h = img.height;
-            const tc = document.createElement('canvas');
-            tc.width = w; tc.height = h;
-            const tctx = tc.getContext('2d');
-            tctx.drawImage(img, 0, 0);
-            const id = tctx.getImageData(0, 0, w, h);
-            URL.revokeObjectURL(img.src);
-            resolve({ rgba: new Uint8ClampedArray(id.data), width: w, height: h, name: file.name, format: 'image', arrayBuffer: null, params: {} });
-          } catch (err) {
-            URL.revokeObjectURL(img.src);
-            reject(new Error('無法讀取圖片像素資料 (可能為安全限制): ' + err.message));
-          }
+        // Read ArrayBuffer for metadata, then use Image API for rendering
+        const metaReader = new FileReader();
+        metaReader.onload = (me) => {
+          const ab = me.target.result;
+          const meta = extractFileMeta(ab, file.name);
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const w = img.width, h = img.height;
+              const tc = document.createElement('canvas');
+              tc.width = w; tc.height = h;
+              const tctx = tc.getContext('2d');
+              tctx.drawImage(img, 0, 0);
+              const id = tctx.getImageData(0, 0, w, h);
+              URL.revokeObjectURL(img.src);
+              resolve({ rgba: new Uint8ClampedArray(id.data), width: w, height: h, name: file.name, format: 'image', arrayBuffer: null, params: {}, meta });
+            } catch (err) {
+              URL.revokeObjectURL(img.src);
+              reject(new Error('無法讀取圖片像素資料 (可能為安全限制): ' + err.message));
+            }
+          };
+          img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('無法載入圖片')); };
+          img.src = URL.createObjectURL(file);
         };
-        img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('無法載入圖片')); };
-        img.src = URL.createObjectURL(file);
+        metaReader.onerror = () => reject(new Error('無法讀取檔案'));
+        metaReader.readAsArrayBuffer(file);
         return;
       }
       const reader = new FileReader();
@@ -2606,7 +2632,8 @@
         const buf = e.target.result;
         const result = parseFileToRGBA(buf, file.name, params);
         if (!result) { reject(new Error('無法解析檔案格式')); return; }
-        resolve({ rgba: result.rgba, width: result.width, height: result.height, name: file.name, format: result.format, arrayBuffer: buf, params: { ...params } });
+        const meta = extractFileMeta(buf, file.name);
+        resolve({ rgba: result.rgba, width: result.width, height: result.height, name: file.name, format: result.format, arrayBuffer: buf, params: { ...params }, meta });
       };
       reader.onerror = () => reject(new Error('無法讀取檔案'));
       reader.readAsArrayBuffer(file);
@@ -2891,7 +2918,7 @@
 
   function cmpSyncSidebarFromParams(img) {
     if (!img) {
-      cmpFormatDetail.textContent = '尚未載入檔案';
+      cmpFormatDetail.innerHTML = '尚未載入檔案';
       document.getElementById('cmp-section-resolution').style.display = 'none';
       document.getElementById('cmp-section-jr2').style.display = 'none';
       document.getElementById('cmp-section-yuv').style.display = 'none';
@@ -2901,10 +2928,79 @@
     }
     const p = img.params;
     const fmt = img.format;
+    const m = img.meta || {};
 
-    // Format info
-    let info = `格式: ${fmt.toUpperCase()}\n解析度: ${img.width}×${img.height}\n檔名: ${img.name}`;
-    cmpFormatDetail.textContent = info;
+    // Build info table (same layout as main viewer)
+    const R = (label, value) => `<tr><td class="info-label">${label}</td><td class="info-value">${value}</td></tr>`;
+    const SEP = '<tr class="info-sep"><td colspan="2"></td></tr>';
+    const HDR = (title) => `<tr class="info-header"><td colspan="2">${title}</td></tr>`;
+    let rows = [];
+
+    if (fmt === 'jr2') {
+      rows.push(HDR('JR2 RAW'));
+      if (m.jr2Model) rows.push(R('型號', m.jr2Model));
+      rows.push(R('解析度', `${img.width}×${img.height}`));
+      if (img.width && img.height) rows.push(R('原始資料', formatFileSize(img.width * img.height)));
+      if (m.jr2Reserved) {
+        rows.push(SEP);
+        rows.push(R('保留位元', `<span style="font-family:monospace;font-size:11px">${m.jr2Reserved}</span>`));
+      }
+    } else if (fmt === 'yuv') {
+      rows.push(HDR('YUV'));
+      rows.push(R('格式', p.yuvFormat || 'NV12'));
+      rows.push(R('位元深度', `${p.yuvBitDepth || 8} bit`));
+      rows.push(R('UV', p.yuvUvSigned ? 'Signed' : 'Unsigned'));
+      rows.push(R('解析度', `${img.width}×${img.height}`));
+    } else if (fmt === 'raw') {
+      rows.push(HDR('RAW'));
+      rows.push(R('格式', p.rawPixelFormat || 'ARGB8888'));
+      rows.push(R('解析度', `${img.width}×${img.height}`));
+    } else if (fmt === 'jl' || fmt === 'argb') {
+      rows.push(HDR(fmt.toUpperCase()));
+      rows.push(R('解析度', `${img.width}×${img.height}`));
+    } else if (fmt === 'image') {
+      const fext = img.name.split('.').pop().toUpperCase();
+      rows.push(HDR(fext));
+      rows.push(R('解析度', `${img.width}×${img.height}`));
+      if (m.pngInfo) {
+        rows.push(R('色彩類型', m.pngInfo.colorTypeStr));
+        rows.push(R('位元深度', m.pngInfo.bitDepth));
+        if (m.pngInfo.interlace) rows.push(R('交錯', 'Adam7'));
+      }
+      if (m.exif) {
+        rows.push(SEP);
+        rows.push(HDR('EXIF'));
+        if (m.exif.make) rows.push(R('裝置製造商', m.exif.make));
+        if (m.exif.model) rows.push(R('模型', m.exif.model));
+        if (m.exif.dateTimeOriginal || m.exif.dateTime)
+          rows.push(R('拍攝時間', m.exif.dateTimeOriginal || m.exif.dateTime));
+        if (m.exif.fNumber) rows.push(R('光圈值', m.exif.fNumber));
+        if (m.exif.exposureTime) rows.push(R('曝光時間', m.exif.exposureTime));
+        if (m.exif.iso) rows.push(R('ISO 感光度', m.exif.iso));
+        if (m.exif.orientation) {
+          const oriMap = {1:'正常', 2:'水平翻轉', 3:'旋轉180°', 4:'垂直翻轉', 5:'順時針90°+翻轉', 6:'順時針90°', 7:'逆時針90°+翻轉', 8:'逆時針90°'};
+          rows.push(R('方向', oriMap[m.exif.orientation] || m.exif.orientation));
+        }
+        if (m.exif.software) rows.push(R('軟體', m.exif.software));
+        if (m.exif.gps) rows.push(R('GPS', m.exif.gps));
+        if (m.exif.exifWidth && m.exif.exifHeight)
+          rows.push(R('EXIF 尺寸', `${m.exif.exifWidth}×${m.exif.exifHeight}`));
+        if (m.exif.thumbnailDataUrl) {
+          rows.push(SEP);
+          rows.push(HDR('縮圖'));
+          rows.push(`<tr><td colspan="2"><img class="info-thumb" src="${m.exif.thumbnailDataUrl}" title="EXIF 縮圖 (點擊放大)" onclick="_openThumbLightbox(this.src)"></td></tr>`);
+        }
+      }
+    }
+    if (rows.length && m.fileSize) {
+      rows.push(SEP);
+      rows.push(R('檔案大小', formatFileSize(m.fileSize)));
+    }
+    rows.push(SEP);
+    rows.push(R('檔名', `<span style="word-break:break-all">${img.name}</span>`));
+    if (rows.length) {
+      cmpFormatDetail.innerHTML = `<table class="info-table">${rows.join('')}</table>`;
+    }
 
     // Show/hide panels
     const showRes = fmt === 'yuv' || fmt === 'raw' || fmt === 'argb';
