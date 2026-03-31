@@ -283,7 +283,6 @@ body::after {
       </div>
       <!-- Pattern-specific params populated dynamically -->
       <div id="extraParams" class="controls" style="display:contents;"></div>
-      <button class="btn" onclick="generate()">&#x27F3; 產生</button>
       <button class="btn btn--magenta" id="btnStop" onclick="stopAnimation()" style="display:none;">&#x25A0; 停止</button>
     </div>
   </div>
@@ -331,6 +330,27 @@ document.getElementById('presetGrid').addEventListener('click', e => {
   currentType = btn.dataset.type;
   buildExtraParams();
   generate();
+});
+
+// ─── Auto-regenerate on any param change ───────────────
+// For motion patterns, only restart on canvas size change; speed/size params are read live each frame.
+// For static patterns, regenerate on every change.
+document.querySelector('.controls').addEventListener('input', e => {
+  if (isMotion(currentType) && animId) {
+    const id = e.target.id;
+    if (id === 'canvasW' || id === 'canvasH') generate();
+    // other params are read live — no restart needed
+  } else {
+    generate();
+  }
+});
+document.querySelector('.controls').addEventListener('change', e => {
+  if (isMotion(currentType) && animId) {
+    const id = e.target.id;
+    if (id === 'canvasW' || id === 'canvasH' || id === 'presetRes') generate();
+  } else {
+    generate();
+  }
 });
 
 // ─── Extra param definitions per pattern ───────────────
