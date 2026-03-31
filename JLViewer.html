@@ -253,7 +253,13 @@
   .panel-row .ctrl-select, .panel-row .ctrl-input { flex: 1; min-width: 0; }
   .panel-row .ctrl-input[type="number"] { width: 70px; flex: 0 0 70px; text-align: right; }
   .panel-body .ctrl-btn { width: 100%; margin-top: 2px; }
-  .format-text { font-size: 12px; color: var(--fg-muted); line-height: 1.6; word-break: break-all; }
+  .format-text { font-size: 12px; color: var(--fg-muted); line-height: 1.5; word-break: break-all; }
+  .info-table { width: 100%; border-collapse: collapse; }
+  .info-table td { padding: 2px 0; vertical-align: top; font-size: 12px; }
+  .info-table td.info-label { color: var(--fg-muted); white-space: nowrap; padding-right: 8px; width: 1%; }
+  .info-table td.info-value { color: var(--fg); text-align: right; word-break: break-all; font-weight: 500; }
+  .info-table tr.info-sep td { padding-top: 6px; }
+  .info-table .info-header td { color: var(--fg); font-weight: 600; font-size: 12px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 
   /* ── Dropzone ───────────────────────────────────────────────── */
   #dropzone {
@@ -588,6 +594,7 @@
             <option value="ARGB1555">ARGB1555</option>
             <option value="RGB565">RGB565</option>
             <option value="RGB888">RGB888</option>
+            <option value="RGB332">RGB332</option>
             <option value="JR2">JR2 (灰階)</option>
           </select></div>
         </div>
@@ -699,7 +706,7 @@
               <option value="ARGB8888">ARGB8888</option><option value="ARGB4444">ARGB4444</option>
               <option value="ARGB2222">ARGB2222</option><option value="ARGB1555">ARGB1555</option>
               <option value="RGB565">RGB565</option><option value="RGB888">RGB888</option>
-              <option value="JR2">JR2 (灰階)</option>
+              <option value="RGB332">RGB332</option><option value="JR2">JR2 (灰階)</option>
             </select></div>
           </div>
         </div>
@@ -792,6 +799,12 @@
   let currentFormat = null; // 'jr2' | 'argb' | 'png' | 'yuv' | 'raw'
   let fileName = '';
 
+  // File metadata state (shared)
+  let currentFileSize = 0;
+  let currentExifData = null;
+  let currentPngInfo = null;
+  let jr2HeaderReserved = null;
+
   // JR2 state
   let rawData = null;
   let imgWidth = 0, imgHeight = 0;
@@ -833,7 +846,7 @@
   const RAW_EXT_FORMAT = {
     '.raw': null, '.rgb888': 'RGB888', '.rgb': 'RGB888', '.bi8': 'JR2',
     '.argb8888': 'ARGB8888', '.argb4444': 'ARGB4444', '.argb1555': 'ARGB1555', '.argb2222': 'ARGB2222',
-    '.rgb565': 'RGB565', '.rgb332': null,
+    '.rgb565': 'RGB565', '.rgb332': 'RGB332',
   };
   function isRawExtension(name) {
     return Object.keys(RAW_EXT_FORMAT).some(e => name.endsWith(e));
@@ -845,14 +858,34 @@
     return null;
   }
 
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
   function handleFile(file) {
     if (!file) return;
     fileName = file.name;
+    currentFileSize = file.size;
+    currentExifData = null;
+    currentPngInfo = null;
+    jr2HeaderReserved = null;
     const ext = file.name.toLowerCase();
 
     if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.bmp')) {
       currentFormat = 'png';
-      handlePNG(file);
+      const metaReader = new FileReader();
+      metaReader.onload = (e) => {
+        const ab = e.target.result;
+        if (ext.endsWith('.jpg') || ext.endsWith('.jpeg')) {
+          currentExifData = parseExifFromArrayBuffer(ab);
+        } else if (ext.endsWith('.png')) {
+          currentPngInfo = parsePngIHDR(ab);
+        }
+        handlePNG(file);
+      };
+      metaReader.readAsArrayBuffer(file);
       return;
     }
 
@@ -896,9 +929,10 @@
     const magic = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
     if (magic !== 'JRAW') { alert('無效的 JR2 檔案 (magic: ' + magic + ')'); return; }
 
-    modelStr = String.fromCharCode(...buf.slice(4, 12));
+    modelStr = String.fromCharCode(...buf.slice(4, 12)).replace(/\0+$/, '');
     imgHeight = (buf[12] << 8) | buf[13];
     imgWidth = (buf[14] << 8) | buf[15];
+    jr2HeaderReserved = Array.from(buf.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
 
     const expectedSize = 32 + imgWidth * imgHeight;
     if (buf.length < expectedSize) {
@@ -907,7 +941,7 @@
     }
 
     rawData = buf.slice(32, 32 + imgWidth * imgHeight);
-    infoEl.textContent = `${fileName} | ${modelStr} | ${imgWidth}×${imgHeight} | ${(buf.length / 1024).toFixed(0)} KB`;
+    infoEl.textContent = `${fileName} | ${modelStr} | ${imgWidth}×${imgHeight} | ${formatFileSize(buf.length)}`;
     render();
   }
 
@@ -964,6 +998,153 @@
       d[off] = v; d[off + 1] = v; d[off + 2] = v; d[off + 3] = 255;
     }
     ctx.putImageData(imageData, 0, 0);
+  }
+
+  // ── EXIF parsing (JPG) ────────────────────────────────────────
+
+  function parseExifFromArrayBuffer(ab) {
+    try {
+      const dv = new DataView(ab);
+      if (dv.getUint16(0) !== 0xFFD8) return null; // not JPEG
+
+      let offset = 2;
+      while (offset < dv.byteLength - 4) {
+        const marker = dv.getUint16(offset);
+        if (marker === 0xFFE1) { // APP1
+          const len = dv.getUint16(offset + 2);
+          const exifStr = String.fromCharCode(dv.getUint8(offset+4), dv.getUint8(offset+5), dv.getUint8(offset+6), dv.getUint8(offset+7));
+          if (exifStr !== 'Exif') { offset += 2 + len; continue; }
+          // TIFF header starts at offset+10
+          const tiffStart = offset + 10;
+          const bo = dv.getUint16(tiffStart);
+          const le = bo === 0x4949; // II = little-endian
+          if (bo !== 0x4949 && bo !== 0x4D4D) return null;
+
+          const r16 = (o) => dv.getUint16(tiffStart + o, le);
+          const r32 = (o) => dv.getUint32(tiffStart + o, le);
+          const rStr = (o, len) => {
+            let s = '';
+            for (let i = 0; i < len; i++) { const c = dv.getUint8(tiffStart + o + i); if (c === 0) break; s += String.fromCharCode(c); }
+            return s.trim();
+          };
+          const rRational = (o) => {
+            const num = r32(o), den = r32(o + 4);
+            return den ? num / den : 0;
+          };
+
+          const result = {};
+
+          function readIFD(ifdOffset, tagHandlers) {
+            if (ifdOffset === 0 || tiffStart + ifdOffset + 2 > dv.byteLength) return;
+            const count = r16(ifdOffset);
+            for (let i = 0; i < count; i++) {
+              const entryOff = ifdOffset + 2 + i * 12;
+              if (tiffStart + entryOff + 12 > dv.byteLength) break;
+              const tag = r16(entryOff);
+              const type = r16(entryOff + 2);
+              const cnt = r32(entryOff + 4);
+              const valOff = entryOff + 8;
+              if (tagHandlers[tag]) {
+                tagHandlers[tag](type, cnt, valOff);
+              }
+            }
+          }
+
+          function getValueOffset(type, cnt, valOff) {
+            const typeSize = {1:1, 2:1, 3:2, 4:4, 5:8, 7:1, 9:4, 10:8}[type] || 1;
+            return (cnt * typeSize > 4) ? r32(valOff) : valOff;
+          }
+
+          let exifIFDOffset = 0, gpsIFDOffset = 0;
+
+          // IFD0
+          const ifd0Off = r32(4);
+          readIFD(ifd0Off, {
+            0x010F: (t, c, v) => { result.make = rStr(getValueOffset(t, c, v), c); },
+            0x0110: (t, c, v) => { result.model = rStr(getValueOffset(t, c, v), c); },
+            0x0112: (t, c, v) => { result.orientation = r16(v); },
+            0x0131: (t, c, v) => { result.software = rStr(getValueOffset(t, c, v), c); },
+            0x0132: (t, c, v) => { result.dateTime = rStr(getValueOffset(t, c, v), c); },
+            0x8769: (t, c, v) => { exifIFDOffset = r32(v); },
+            0x8825: (t, c, v) => { gpsIFDOffset = r32(v); },
+          });
+
+          // ExifIFD
+          if (exifIFDOffset) {
+            readIFD(exifIFDOffset, {
+              0x829A: (t, c, v) => {
+                const vo = getValueOffset(t, c, v);
+                const num = r32(vo), den = r32(vo + 4);
+                result.exposureTime = den ? (num >= den ? `${num/den}s` : `1/${Math.round(den/num)}s`) : null;
+              },
+              0x829D: (t, c, v) => {
+                const vo = getValueOffset(t, c, v);
+                result.fNumber = rRational(vo).toFixed(1);
+              },
+              0x8827: (t, c, v) => { result.iso = r16(v); },
+              0x9003: (t, c, v) => { result.dateTimeOriginal = rStr(getValueOffset(t, c, v), c); },
+              0xA002: (t, c, v) => { result.exifWidth = (t === 3) ? r16(v) : r32(v); },
+              0xA003: (t, c, v) => { result.exifHeight = (t === 3) ? r16(v) : r32(v); },
+            });
+          }
+
+          // GPS IFD
+          if (gpsIFDOffset) {
+            let latRef = '', lonRef = '';
+            let latVals = null, lonVals = null;
+            readIFD(gpsIFDOffset, {
+              0x0001: (t, c, v) => { latRef = rStr(v, 2); },
+              0x0002: (t, c, v) => {
+                const vo = getValueOffset(t, c, v);
+                latVals = [rRational(vo), rRational(vo+8), rRational(vo+16)];
+              },
+              0x0003: (t, c, v) => { lonRef = rStr(v, 2); },
+              0x0004: (t, c, v) => {
+                const vo = getValueOffset(t, c, v);
+                lonVals = [rRational(vo), rRational(vo+8), rRational(vo+16)];
+              },
+            });
+            if (latVals && lonVals) {
+              const toDec = (v, ref) => {
+                const d = v[0] + v[1]/60 + v[2]/3600;
+                return (ref === 'S' || ref === 'W') ? -d : d;
+              };
+              const lat = toDec(latVals, latRef);
+              const lon = toDec(lonVals, lonRef);
+              result.gps = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+            }
+          }
+
+          return Object.keys(result).length ? result : null;
+        }
+        // skip to next marker
+        if ((marker & 0xFF00) !== 0xFF00) break;
+        offset += 2 + dv.getUint16(offset + 2);
+      }
+      return null;
+    } catch (e) { return null; }
+  }
+
+  // ── PNG IHDR parsing ─────────────────────────────────────────
+
+  function parsePngIHDR(ab) {
+    try {
+      const dv = new DataView(ab);
+      // PNG signature: 137 80 78 71 13 10 26 10
+      if (dv.getUint32(0) !== 0x89504E47 || dv.getUint32(4) !== 0x0D0A1A0A) return null;
+      // IHDR chunk: bytes 12-15 should be "IHDR"
+      if (dv.getUint32(12) !== 0x49484452) return null;
+      const colorTypeMap = {0:'灰階', 2:'RGB', 3:'索引色', 4:'灰階+Alpha', 6:'RGBA'};
+      const ct = dv.getUint8(25);
+      return {
+        width: dv.getUint32(16),
+        height: dv.getUint32(20),
+        bitDepth: dv.getUint8(24),
+        colorType: ct,
+        colorTypeStr: colorTypeMap[ct] || `未知(${ct})`,
+        interlace: dv.getUint8(28),
+      };
+    } catch (e) { return null; }
   }
 
   // ── PNG handling ──────────────────────────────────────────────
@@ -1512,7 +1693,7 @@
       const dims = getDimensionsFromFileName(fileName);
       if (dims) { w = dims.width; h = dims.height; source = '檔名'; }
       else {
-        const bppMap = { ARGB8888: 4, ARGB4444: 2, ARGB1555: 2, ARGB2222: 1, RGB565: 2, RGB888: 3, JR2: 1 };
+        const bppMap = { ARGB8888: 4, ARGB4444: 2, ARGB1555: 2, ARGB2222: 1, RGB565: 2, RGB888: 3, RGB332: 1, JR2: 1 };
         const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, bppMap[rawPixfmtSelect.value] || 1);
         if (guess) { w = guess.width; h = guess.height; source = '檔案大小推測'; }
         else if (inputWidth.value && inputHeight.value) { w = parseInt(inputWidth.value); h = parseInt(inputHeight.value); source = '輸入框'; }
@@ -1570,6 +1751,14 @@
         if (i * 3 + 2 < actual) {
           rgba[i*4] = dv.getUint8(i*3); rgba[i*4+1] = dv.getUint8(i*3+1);
           rgba[i*4+2] = dv.getUint8(i*3+2); rgba[i*4+3] = 255;
+        } else { rgba[i*4+3] = 255; }
+      }
+    } else if (fmt === 'RGB332') {
+      for (let i = 0; i < w * h; i++) {
+        if (i < actual) {
+          const v = dv.getUint8(i);
+          rgba[i*4] = ((v>>5)&7)*255/7; rgba[i*4+1] = ((v>>2)&7)*255/7;
+          rgba[i*4+2] = (v&3)*255/3; rgba[i*4+3] = 255;
         } else { rgba[i*4+3] = 255; }
       }
     } else if (fmt === 'JR2') {
@@ -1704,24 +1893,75 @@
     }
     document.getElementById('section-background').style.display = hasAlpha ? '' : 'none';
 
-    // Update format detail
+    // Update format detail — table layout
+    const R = (label, value) => `<tr><td class="info-label">${label}</td><td class="info-value">${value}</td></tr>`;
+    const SEP = '<tr class="info-sep"><td colspan="2"></td></tr>';
+    const HDR = (title) => `<tr class="info-header"><td colspan="2">${title}</td></tr>`;
+    let rows = [];
+
     if (isJR2) {
-      formatDetail.textContent = `格式: JR2 RAW\n型號: ${modelStr}\n解析度: ${imgWidth}×${imgHeight}`;
+      rows.push(HDR('JR2 RAW'));
+      rows.push(R('型號', modelStr));
+      rows.push(R('解析度', `${imgWidth}×${imgHeight}`));
+      rows.push(R('原始資料', formatFileSize(imgWidth * imgHeight)));
+      if (jr2HeaderReserved) {
+        rows.push(SEP);
+        rows.push(R('保留位元', `<span style="font-family:monospace;font-size:11px">${jr2HeaderReserved}</span>`));
+      }
     } else if (isYUV) {
-      formatDetail.textContent = `格式: YUV ${yuvFormatSelect.value}\n位元深度: ${yuvBitdepthSelect.value} bit\nUV: ${yuvUvSignedCheckbox.checked ? 'Signed' : 'Unsigned'}\n解析度: ${argbWidth}×${argbHeight}`;
+      rows.push(HDR('YUV'));
+      rows.push(R('格式', yuvFormatSelect.value));
+      rows.push(R('位元深度', `${yuvBitdepthSelect.value} bit`));
+      rows.push(R('UV', yuvUvSignedCheckbox.checked ? 'Signed' : 'Unsigned'));
+      rows.push(R('解析度', `${argbWidth}×${argbHeight}`));
     } else if (isRAW) {
-      formatDetail.textContent = `格式: RAW ${rawPixfmtSelect.value}\n解析度: ${argbWidth}×${argbHeight}`;
+      rows.push(HDR('RAW'));
+      rows.push(R('格式', rawPixfmtSelect.value));
+      rows.push(R('解析度', `${argbWidth}×${argbHeight}`));
     } else if (isARGB && argbResult) {
       const fi = argbResult.formatInfo;
-      let text = `格式: ${fi.symbol || fi.format}\n解析度: ${argbWidth}×${argbHeight}\n來源: ${argbResult.source}`;
-      if (fi.scanModeText) text += `\n掃描: ${fi.scanModeText}`;
-      if (fi.iconWidth) text += `\nIcon: ${fi.iconWidth}×${fi.iconHeight}`;
-      formatDetail.textContent = text;
+      rows.push(HDR(fi.symbol || fi.format));
+      rows.push(R('解析度', `${argbWidth}×${argbHeight}`));
+      rows.push(R('來源', argbResult.source));
+      if (fi.scanModeText) rows.push(R('掃描', fi.scanModeText));
+      if (fi.iconWidth) rows.push(R('Icon', `${fi.iconWidth}×${fi.iconHeight}`));
     } else if (isPNG) {
       const fext = fileName.split('.').pop().toUpperCase();
-      formatDetail.textContent = `格式: ${fext}\n解析度: ${argbWidth}×${argbHeight}`;
+      rows.push(HDR(fext));
+      rows.push(R('解析度', `${argbWidth}×${argbHeight}`));
+      if (currentPngInfo) {
+        rows.push(R('色彩類型', currentPngInfo.colorTypeStr));
+        rows.push(R('位元深度', currentPngInfo.bitDepth));
+        if (currentPngInfo.interlace) rows.push(R('交錯', 'Adam7'));
+      }
+      if (currentExifData) {
+        rows.push(SEP);
+        rows.push(HDR('EXIF'));
+        if (currentExifData.make) rows.push(R('裝置製造商', currentExifData.make));
+        if (currentExifData.model) rows.push(R('模型', currentExifData.model));
+        if (currentExifData.dateTimeOriginal || currentExifData.dateTime)
+          rows.push(R('拍攝時間', currentExifData.dateTimeOriginal || currentExifData.dateTime));
+        if (currentExifData.fNumber) rows.push(R('光圈值', currentExifData.fNumber));
+        if (currentExifData.exposureTime) rows.push(R('曝光時間', currentExifData.exposureTime));
+        if (currentExifData.iso) rows.push(R('ISO 感光度', currentExifData.iso));
+        if (currentExifData.orientation) {
+          const oriMap = {1:'正常', 2:'水平翻轉', 3:'旋轉180°', 4:'垂直翻轉', 5:'順時針90°+翻轉', 6:'順時針90°', 7:'逆時針90°+翻轉', 8:'逆時針90°'};
+          rows.push(R('方向', oriMap[currentExifData.orientation] || currentExifData.orientation));
+        }
+        if (currentExifData.software) rows.push(R('軟體', currentExifData.software));
+        if (currentExifData.gps) rows.push(R('GPS', currentExifData.gps));
+        if (currentExifData.exifWidth && currentExifData.exifHeight)
+          rows.push(R('EXIF 尺寸', `${currentExifData.exifWidth}×${currentExifData.exifHeight}`));
+      }
     }
-    formatDetail.style.whiteSpace = 'pre-line';
+    if (rows.length && currentFileSize) {
+      rows.push(SEP);
+      rows.push(R('檔案大小', formatFileSize(currentFileSize)));
+    }
+    if (rows.length) {
+      formatDetail.innerHTML = `<table class="info-table">${rows.join('')}</table>`;
+    }
+    formatDetail.style.whiteSpace = 'normal';
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -2185,7 +2425,7 @@
       const dims = getDimensionsFromFileName(fileName);
       if (dims) { w = dims.width; h = dims.height; }
       else {
-        const bppMap = { ARGB8888:4, ARGB4444:2, ARGB1555:2, ARGB2222:1, RGB565:2, RGB888:3, JR2:1 };
+        const bppMap = { ARGB8888:4, ARGB4444:2, ARGB1555:2, ARGB2222:1, RGB565:2, RGB888:3, RGB332:1, JR2:1 };
         const guess = guessResolutionFromFileSize(arrayBuffer.byteLength, bppMap[fmt] || 1);
         if (guess) { w = guess.width; h = guess.height; }
         else { w = 128; h = 128; }
@@ -2223,6 +2463,11 @@
     } else if (fmt === 'RGB888') {
       for (let i = 0; i < w*h; i++) {
         if (i*3+2<actual) { rgba[i*4]=dv.getUint8(i*3); rgba[i*4+1]=dv.getUint8(i*3+1); rgba[i*4+2]=dv.getUint8(i*3+2); rgba[i*4+3]=255; }
+        else rgba[i*4+3]=255;
+      }
+    } else if (fmt === 'RGB332') {
+      for (let i = 0; i < w*h; i++) {
+        if (i<actual) { const v=dv.getUint8(i); rgba[i*4]=((v>>5)&7)*255/7; rgba[i*4+1]=((v>>2)&7)*255/7; rgba[i*4+2]=(v&3)*255/3; rgba[i*4+3]=255; }
         else rgba[i*4+3]=255;
       }
     } else if (fmt === 'JR2') {
