@@ -832,8 +832,8 @@
   // RAW 副檔名 → 預設像素格式對照
   const RAW_EXT_FORMAT = {
     '.raw': null, '.rgb888': 'RGB888', '.rgb': 'RGB888', '.bi8': 'JR2',
-    '.argb8888': null, '.argb4444': null, '.argb1555': null, '.argb2222': null,
-    '.rgb565': null, '.rgb332': null,
+    '.argb8888': 'ARGB8888', '.argb4444': 'ARGB4444', '.argb1555': 'ARGB1555', '.argb2222': 'ARGB2222',
+    '.rgb565': 'RGB565', '.rgb332': null,
   };
   function isRawExtension(name) {
     return Object.keys(RAW_EXT_FORMAT).some(e => name.endsWith(e));
