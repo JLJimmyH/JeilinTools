@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PATTERN_GEN // IQ 測試圖產生器</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg-card: #12121a;
+  --bg-muted: #1c1c2e;
+  --text: #e0e0e0;
+  --text-muted: #6b7280;
+  --border: #2a2a3a;
+  --accent: #00ff88;
+  --accent2: #ff00ff;
+  --accent3: #00d4ff;
+  --glow-sm: 0 0 5px var(--accent), 0 0 10px rgba(0,255,136,0.4);
+  --glow-md: 0 0 10px var(--accent), 0 0 20px rgba(0,255,136,0.5), 0 0 40px rgba(0,255,136,0.3);
+}
+
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.ambient { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; }
+.ambient--green { width: 500px; height: 500px; background: rgba(0,255,136,0.08); top: -150px; left: -150px; }
+.ambient--magenta { width: 400px; height: 400px; background: rgba(255,0,255,0.05); bottom: -100px; right: -100px; }
+
+/* Layout */
+.app {
+  position: relative;
+  max-width: 1300px; margin: 0 auto;
+  padding: 2rem 1.5rem;
+  display: flex; flex-direction: column; gap: 1.5rem;
+}
+
+.app-title {
+  font-size: 1.4rem; font-weight: bold;
+  letter-spacing: 0.3em; color: var(--accent);
+  text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff8860;
+  text-transform: uppercase; text-align: center;
+}
+.app-title a {
+  color: var(--text-muted); font-size: 0.7rem; text-decoration: none;
+  letter-spacing: 0.1em; vertical-align: middle;
+}
+.app-title a:hover { color: var(--accent); }
+
+/* Panels */
+.panel {
+  position: relative;
+  z-index: 1;
+  background: rgba(18,18,26,0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem 1.5rem;
+}
+/* Canvas panel: sits above ALL overlays (body::before grid z-index:auto, body::after scanline z-index:100) */
+.panel--canvas {
+  z-index: 200;
+  background: #000;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+.panel-title {
+  font-size: 0.75rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: 1rem; font-weight: bold;
+}
+
+/* Controls */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-group label {
+  font-size: 0.65rem; color: var(--text-muted);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.ctrl-group select,
+.ctrl-group input[type="number"] {
+  background: var(--bg-muted); border: 1px solid var(--border);
+  color: var(--text); padding: 0.5rem 0.7rem;
+  border-radius: 6px; font-family: inherit; font-size: 0.8rem;
+  outline: none; transition: border-color 0.2s;
+}
+.ctrl-group select:focus,
+.ctrl-group input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--glow-sm);
+}
+.ctrl-group input[type="number"] { width: 90px; }
+
+.btn {
+  padding: 0.5rem 1.2rem; border: 1px solid var(--accent);
+  background: transparent; color: var(--accent);
+  border-radius: 6px; font-family: inherit; font-size: 0.75rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn:hover {
+  background: var(--accent); color: var(--bg);
+  box-shadow: var(--glow-md);
+}
+.btn--magenta { border-color: var(--accent2); color: var(--accent2); }
+.btn--magenta:hover { background: var(--accent2); color: var(--bg); box-shadow: 0 0 10px var(--accent2), 0 0 20px rgba(255,0,255,0.5); }
+.btn--cyan { border-color: var(--accent3); color: var(--accent3); }
+.btn--cyan:hover { background: var(--accent3); color: var(--bg); box-shadow: 0 0 10px var(--accent3), 0 0 20px rgba(0,212,255,0.5); }
+
+/* Presets grid */
+.presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+.preset-btn {
+  padding: 0.7rem 0.5rem; border: 1px solid var(--border);
+  background: var(--bg-muted); color: var(--text);
+  border-radius: 6px; font-family: inherit; font-size: 0.68rem;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.preset-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+.preset-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow-sm); }
+.preset-icon { font-size: 1.4rem; display: block; margin-bottom: 0.3rem; line-height: 1.2; }
+
+/* Canvas area — clean, no overlays */
+.canvas-wrap {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 300px; overflow: auto;
+  background: #000;
+}
+#patternCanvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Export panel */
+.export-row {
+  display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center;
+}
+.export-info {
+  font-size: 0.65rem; color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 700px) {
+  .app { padding: 1rem 0.8rem; }
+  .app-title { font-size: 1rem; }
+  .controls { gap: 0.6rem; }
+  .presets-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<div class="ambient ambient--green"></div>
+<div class="ambient ambient--magenta"></div>
+
+<div class="app">
+  <div class="app-title">
+    <a href="index.html">&larr; JL2Os /</a> Pattern_Gen
+  </div>
+
+  <!-- Pattern type presets -->
+  <div class="panel">
+    <div class="panel-title">// 圖案類型</div>
+    <div class="presets-grid" id="presetGrid">
+      <button class="preset-btn active" data-type="colorBars">
+        <span class="preset-icon">▐░▌</span>Color Bars
+      </button>
+      <button class="preset-btn" data-type="grayscale">
+        <span class="preset-icon">◧◨◩</span>Grayscale Ramp
+      </button>
+      <button class="preset-btn" data-type="checkerboard">
+        <span class="preset-icon">▚▞▚</span>Checkerboard
+      </button>
+      <button class="preset-btn" data-type="solidColor">
+        <span class="preset-icon">██</span>Solid Color
+      </button>
+      <button class="preset-btn" data-type="rgbStripes">
+        <span class="preset-icon">|||</span>RGB Stripes
+      </button>
+      <button class="preset-btn" data-type="gradient">
+        <span class="preset-icon">▓▒░</span>Gradient
+      </button>
+      <button class="preset-btn" data-type="siemensStar">
+        <span class="preset-icon">✳</span>Siemens Star
+      </button>
+      <button class="preset-btn" data-type="zonePlate">
+        <span class="preset-icon">◎</span>Zone Plate
+      </button>
+      <button class="preset-btn" data-type="resChart">
+        <span class="preset-icon">▥▤</span>Resolution Chart
+      </button>
+      <button class="preset-btn" data-type="colorChecker">
+        <span class="preset-icon">▦</span>Color Checker
+      </button>
+      <button class="preset-btn" data-type="slantedEdge">
+        <span class="preset-icon">╱</span>Slanted Edge
+      </button>
+      <button class="preset-btn" data-type="deadPixel">
+        <span class="preset-icon">⊹</span>Dead Pixel Grid
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="panel">
+    <div class="panel-title">// 參數設定</div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <label>寬度 (px)</label>
+        <input type="number" id="canvasW" value="1920" min="64" max="8192" step="1">
+      </div>
+      <div class="ctrl-group">
+        <label>高度 (px)</label>
+        <input type="number" id="canvasH" value="1080" min="64" max="8192" step="1">
+      </div>
+      <div class="ctrl-group">
+        <label>快速解析度</label>
+        <select id="presetRes">
+          <option value="">自訂</option>
+          <option value="640x480">VGA 640×480</option>
+          <option value="1280x720">HD 1280×720</option>
+          <option value="1920x1080" selected>FHD 1920×1080</option>
+          <option value="2560x1440">QHD 2560×1440</option>
+          <option value="3840x2160">4K 3840×2160</option>
+          <option value="1600x1200">UXGA 1600×1200</option>
+          <option value="2592x1944">5MP 2592×1944</option>
+          <option value="3264x2448">8MP 3264×2448</option>
+          <option value="4032x3024">12MP 4032×3024</option>
+        </select>
+      </div>
+      <!-- Pattern-specific params populated dynamically -->
+      <div id="extraParams" class="controls" style="display:contents;"></div>
+      <button class="btn" onclick="generate()">&#x27F3; 產生</button>
+    </div>
+  </div>
+
+  <!-- Canvas — no styling overlays, clean for camera capture -->
+  <div class="panel panel--canvas">
+    <div class="canvas-wrap">
+      <canvas id="patternCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="panel">
+    <div class="panel-title">// 匯出</div>
+    <div class="export-row">
+      <button class="btn" onclick="exportPNG()">PNG (無損)</button>
+      <button class="btn btn--cyan" onclick="exportBMP()">BMP (原始)</button>
+      <button class="btn btn--magenta" onclick="printPattern()">列印</button>
+      <span class="export-info" id="exportInfo">1920 × 1080 · PNG 無壓縮輸出</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Globals ───────────────────────────────────────────
+const canvas = document.getElementById('patternCanvas');
+const ctx = canvas.getContext('2d');
+let currentType = 'colorBars';
+
+// ─── Preset Resolution ─────────────────────────────────
+document.getElementById('presetRes').addEventListener('change', e => {
+  if (!e.target.value) return;
+  const [w, h] = e.target.value.split('x').map(Number);
+  document.getElementById('canvasW').value = w;
+  document.getElementById('canvasH').value = h;
+  generate();
+});
+
+// ─── Preset Buttons ────────────────────────────────────
+document.getElementById('presetGrid').addEventListener('click', e => {
+  const btn = e.target.closest('.preset-btn');
+  if (!btn) return;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentType = btn.dataset.type;
+  buildExtraParams();
+  generate();
+});
+
+// ─── Extra param definitions per pattern ───────────────
+const EXTRA_PARAMS = {
+  checkerboard: [
+    { id: 'cbSize', label: '格子大小 (px)', type: 'number', value: 40, min: 2, max: 512 },
+  ],
+  solidColor: [
+    { id: 'solidR', label: 'R', type: 'number', value: 255, min: 0, max: 255 },
+    { id: 'solidG', label: 'G', type: 'number', value: 0, min: 0, max: 255 },
+    { id: 'solidB', label: 'B', type: 'number', value: 0, min: 0, max: 255 },
+    { id: 'solidCycle', label: '循環色', type: 'select', options: [
+      { value: 'none', text: '固定色' },
+      { value: 'rgbwcmyk', text: 'R→G→B→W→C→M→Y→K' },
+    ]},
+  ],
+  rgbStripes: [
+    { id: 'stripeW', label: '線寬 (px)', type: 'number', value: 1, min: 1, max: 64 },
+    { id: 'stripeDir', label: '方向', type: 'select', options: [
+      { value: 'v', text: '垂直' }, { value: 'h', text: '水平' },
+    ]},
+  ],
+  gradient: [
+    { id: 'gradType', label: '漸層類型', type: 'select', options: [
+      { value: 'bw', text: '黑→白' },
+      { value: 'rgb', text: 'RGB 三色漸層' },
+      { value: 'hue', text: '色相環' },
+      { value: 'radial', text: '徑向漸層' },
+    ]},
+  ],
+  siemensStar: [
+    { id: 'starSpokes', label: '輻條數', type: 'number', value: 36, min: 8, max: 144 },
+  ],
+  zonePlate: [
+    { id: 'zpFreq', label: '頻率', type: 'number', value: 80, min: 10, max: 500 },
+  ],
+  resChart: [
+    { id: 'resLineW', label: '最小線寬 (px)', type: 'number', value: 1, min: 1, max: 8 },
+  ],
+  slantedEdge: [
+    { id: 'seAngle', label: '角度 (°)', type: 'number', value: 5, min: 1, max: 45 },
+    { id: 'seContrast', label: '對比 (%)', type: 'number', value: 100, min: 10, max: 100 },
+  ],
+  deadPixel: [
+    { id: 'dpSize', label: '格子大小 (px)', type: 'number', value: 20, min: 4, max: 100 },
+  ],
+};
+
+function buildExtraParams() {
+  const container = document.getElementById('extraParams');
+  container.innerHTML = '';
+  const defs = EXTRA_PARAMS[currentType];
+  if (!defs) return;
+  defs.forEach(d => {
+    const grp = document.createElement('div');
+    grp.className = 'ctrl-group';
+    const lbl = document.createElement('label');
+    lbl.textContent = d.label;
+    grp.appendChild(lbl);
+    if (d.type === 'number') {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.id = d.id;
+      inp.value = d.value; inp.min = d.min; inp.max = d.max;
+      grp.appendChild(inp);
+    } else if (d.type === 'select') {
+      const sel = document.createElement('select');
+      sel.id = d.id;
+      d.options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value; opt.textContent = o.text;
+        sel.appendChild(opt);
+      });
+      grp.appendChild(sel);
+    }
+    container.appendChild(grp);
+  });
+}
+
+function param(id, fallback) {
+  const el = document.getElementById(id);
+  if (!el) return fallback;
+  return el.type === 'number' ? +el.value : el.value;
+}
+
+// ─── Pattern Generators ────────────────────────────────
+
+function genColorBars(w, h) {
+  // SMPTE-style color bars: White, Yellow, Cyan, Green, Magenta, Red, Blue, Black
+  const colors = [
+    [192,192,192],[192,192,0],[0,192,192],[0,192,0],
+    [192,0,192],[192,0,0],[0,0,192],[0,0,0]
+  ];
+  const barW = w / colors.length;
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const ci = Math.min(Math.floor(x / barW), colors.length - 1);
+      const c = colors[ci];
+      const idx = (y * w + x) * 4;
+      d[idx] = c[0]; d[idx+1] = c[1]; d[idx+2] = c[2]; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Bottom section: reverse bars + black/white references (like SMPTE)
+  const bottomH = Math.round(h * 0.08);
+  const bottomY = h - bottomH;
+  const revColors = [[0,0,192],[0,0,0],[192,0,192],[0,0,0],[0,192,192],[0,0,0],[192,192,192]];
+  const revBarW = w / revColors.length;
+  for (let y = bottomY; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const ci = Math.min(Math.floor(x / revBarW), revColors.length - 1);
+      const c = revColors[ci];
+      const idx = (y * w + x) * 4;
+      d[idx] = c[0]; d[idx+1] = c[1]; d[idx+2] = c[2]; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genGrayscale(w, h) {
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  // Top 75%: 256-step horizontal gradient
+  const topH = Math.round(h * 0.75);
+  for (let y = 0; y < topH; y++) {
+    for (let x = 0; x < w; x++) {
+      const v = Math.round((x / (w - 1)) * 255);
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  // Bottom 25%: discrete steps
+  const steps = 16;
+  const stepW = w / steps;
+  for (let y = topH; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const si = Math.min(Math.floor(x / stepW), steps - 1);
+      const v = Math.round((si / (steps - 1)) * 255);
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genCheckerboard(w, h) {
+  const size = param('cbSize', 40);
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const v = ((Math.floor(x / size) + Math.floor(y / size)) % 2) === 0 ? 255 : 0;
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genSolidColor(w, h) {
+  const cycle = param('solidCycle', 'none');
+  if (cycle === 'rgbwcmyk') {
+    // 8-color cycle: each fills the whole canvas as separate "pages" — here show all in strips
+    const colors = [
+      [255,0,0],[0,255,0],[0,0,255],[255,255,255],
+      [0,255,255],[255,0,255],[255,255,0],[0,0,0]
+    ];
+    const stripH = h / colors.length;
+    colors.forEach((c, i) => {
+      ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      ctx.fillRect(0, Math.round(i * stripH), w, Math.ceil(stripH));
+    });
+  } else {
+    const r = param('solidR', 255), g = param('solidG', 0), b = param('solidB', 0);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+}
+
+function genRGBStripes(w, h) {
+  const lw = param('stripeW', 1);
+  const dir = param('stripeDir', 'v');
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const pos = dir === 'v' ? x : y;
+      const ci = Math.floor(pos / lw) % 3;
+      const idx = (y * w + x) * 4;
+      d[idx] = ci === 0 ? 255 : 0;
+      d[idx+1] = ci === 1 ? 255 : 0;
+      d[idx+2] = ci === 2 ? 255 : 0;
+      d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genGradient(w, h) {
+  const type = param('gradType', 'bw');
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+
+  if (type === 'bw') {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = Math.round((x / (w - 1)) * 255);
+        const idx = (y * w + x) * 4;
+        d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+      }
+    }
+  } else if (type === 'rgb') {
+    // Three horizontal bands: R gradient, G gradient, B gradient
+    const bandH = h / 3;
+    for (let y = 0; y < h; y++) {
+      const band = Math.min(Math.floor(y / bandH), 2);
+      for (let x = 0; x < w; x++) {
+        const v = Math.round((x / (w - 1)) * 255);
+        const idx = (y * w + x) * 4;
+        d[idx] = band === 0 ? v : 0;
+        d[idx+1] = band === 1 ? v : 0;
+        d[idx+2] = band === 2 ? v : 0;
+        d[idx+3] = 255;
+      }
+    }
+  } else if (type === 'hue') {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const hue = (x / w) * 360;
+        const [r, g, b] = hsl2rgb(hue, 1, 0.5);
+        const idx = (y * w + x) * 4;
+        d[idx] = r; d[idx+1] = g; d[idx+2] = b; d[idx+3] = 255;
+      }
+    }
+  } else if (type === 'radial') {
+    const cx = w / 2, cy = h / 2;
+    const maxR = Math.sqrt(cx * cx + cy * cy);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        const v = Math.round((dist / maxR) * 255);
+        const idx = (y * w + x) * 4;
+        d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genSiemensStar(w, h) {
+  const spokes = param('starSpokes', 36);
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  const cx = w / 2, cy = h / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const angle = Math.atan2(y - cy, x - cx);
+      const sector = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * spokes * 2);
+      const v = sector % 2 === 0 ? 255 : 0;
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genZonePlate(w, h) {
+  const freq = param('zpFreq', 80);
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  const cx = w / 2, cy = h / 2;
+  const scale = freq / Math.max(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const r2 = (x - cx) ** 2 + (y - cy) ** 2;
+      const v = Math.round((Math.cos(r2 * scale * 0.01) * 0.5 + 0.5) * 255);
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function genResChart(w, h) {
+  const minLW = param('resLineW', 1);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+
+  // Horizontal and vertical line groups at increasing frequencies
+  const groups = 8;
+  const groupW = w / 2 / groups;
+  const groupH = h / 2 / groups;
+
+  // Top-left: horizontal lines (increasing freq)
+  for (let g = 0; g < groups; g++) {
+    const lw = Math.max(minLW, Math.round((groups - g) * 2));
+    const x0 = 0, y0 = g * groupH;
+    ctx.fillStyle = '#000';
+    for (let y = y0; y < y0 + groupH; y += lw * 2) {
+      ctx.fillRect(x0, y, w / 2, Math.min(lw, y0 + groupH - y));
+    }
+    // Label
+    ctx.fillStyle = '#888';
+    ctx.font = `${Math.max(10, Math.round(groupH * 0.3))}px Courier New`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${lw}px`, w / 2 - 5, y0 + groupH / 2);
+  }
+
+  // Top-right: vertical lines (increasing freq)
+  for (let g = 0; g < groups; g++) {
+    const lw = Math.max(minLW, Math.round((groups - g) * 2));
+    const x0 = w / 2 + g * groupW, y0 = 0;
+    ctx.fillStyle = '#000';
+    for (let x = x0; x < x0 + groupW; x += lw * 2) {
+      ctx.fillRect(x, y0, Math.min(lw, x0 + groupW - x), h / 2);
+    }
+  }
+
+  // Bottom-left: diagonal lines
+  const diagArea = { x: 0, y: h / 2, w: w / 2, h: h / 2 };
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(diagArea.x, diagArea.y, diagArea.w, diagArea.h);
+  ctx.clip();
+  for (let g = 0; g < groups; g++) {
+    const lw = Math.max(minLW, Math.round((groups - g) * 2));
+    const sectionW = diagArea.w / groups;
+    const x0 = diagArea.x + g * sectionW;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = lw;
+    for (let offset = -diagArea.h; offset < sectionW + diagArea.h; offset += lw * 3) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + offset, diagArea.y);
+      ctx.lineTo(x0 + offset + diagArea.h, diagArea.y + diagArea.h);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // Bottom-right: checkerboard increasing freq
+  for (let g = 0; g < groups; g++) {
+    const size = Math.max(minLW, Math.round((groups - g) * 3));
+    const gx = w / 2 + g * groupW;
+    const gy = h / 2;
+    for (let y = gy; y < h; y += size) {
+      for (let x = gx; x < gx + groupW; x += size) {
+        const isBlack = ((Math.floor((x - gx) / size) + Math.floor((y - gy) / size)) % 2) === 0;
+        ctx.fillStyle = isBlack ? '#000' : '#fff';
+        ctx.fillRect(x, y, Math.min(size, gx + groupW - x), Math.min(size, h - y));
+      }
+    }
+  }
+
+  // Center crosshair
+  ctx.strokeStyle = '#c00'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - 30, h / 2); ctx.lineTo(w / 2 + 30, h / 2);
+  ctx.moveTo(w / 2, h / 2 - 30); ctx.lineTo(w / 2, h / 2 + 30);
+  ctx.stroke();
+}
+
+function genColorChecker(w, h) {
+  // Simplified Macbeth ColorChecker 24-patch layout (sRGB approximations)
+  const patches = [
+    // Row 1: natural colors
+    [115,82,68],[194,150,130],[98,122,157],[87,108,67],[133,128,177],[103,189,170],
+    // Row 2: misc
+    [214,126,44],[80,91,166],[193,90,99],[94,60,108],[157,188,64],[224,163,46],
+    // Row 3: saturated
+    [56,61,150],[70,148,73],[175,54,60],[231,199,31],[187,86,149],[8,133,161],
+    // Row 4: grayscale
+    [243,243,242],[200,200,200],[160,160,160],[122,122,121],[85,85,85],[52,52,52],
+  ];
+  const cols = 6, rows = 4;
+  const patchW = w / cols, patchH = h / rows;
+
+  for (let i = 0; i < patches.length; i++) {
+    const r = Math.floor(i / cols), c = i % cols;
+    const [pr, pg, pb] = patches[i];
+    const px = c * patchW, py = r * patchH;
+
+    ctx.fillStyle = `rgb(${pr},${pg},${pb})`;
+    ctx.fillRect(px + 2, py + 2, patchW - 4, patchH - 4);
+
+    // Border
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.strokeRect(px + 2, py + 2, patchW - 4, patchH - 4);
+
+    // Label
+    ctx.fillStyle = (pr + pg + pb) > 380 ? '#000' : '#fff';
+    ctx.font = `${Math.max(9, Math.round(patchH * 0.08))}px Courier New`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(`${pr},${pg},${pb}`, px + patchW / 2, py + patchH - 6);
+  }
+}
+
+function genSlantedEdge(w, h) {
+  const angle = param('seAngle', 5) * Math.PI / 180;
+  const contrast = param('seContrast', 100) / 100;
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+  const dark = Math.round(128 * (1 - contrast));
+  const light = Math.round(128 * (1 + contrast));
+  const cx = w / 2;
+
+  for (let y = 0; y < h; y++) {
+    const edgeX = cx + (y - h / 2) * Math.tan(angle);
+    for (let x = 0; x < w; x++) {
+      const v = x < edgeX ? dark : light;
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx+1] = d[idx+2] = v; d[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // ROI indicator
+  const roiW = Math.round(w * 0.3), roiH = Math.round(h * 0.6);
+  ctx.strokeStyle = 'rgba(255,0,0,0.6)'; ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect((w - roiW) / 2, (h - roiH) / 2, roiW, roiH);
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = 'rgba(255,0,0,0.7)';
+  ctx.font = `${Math.max(12, Math.round(h * 0.02))}px Courier New`;
+  ctx.textAlign = 'center';
+  ctx.fillText('MTF ROI', w / 2, (h - roiH) / 2 - 5);
+}
+
+function genDeadPixel(w, h) {
+  const size = param('dpSize', 20);
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+
+  // Fill with mid-gray
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = d[i+1] = d[i+2] = 128; d[i+3] = 255;
+  }
+
+  // Grid lines
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (x % size === 0 || y % size === 0) {
+        const idx = (y * w + x) * 4;
+        d[idx] = d[idx+1] = d[idx+2] = 100;
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Center crosshair
+  ctx.strokeStyle = '#c00'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - 20, h / 2); ctx.lineTo(w / 2 + 20, h / 2);
+  ctx.moveTo(w / 2, h / 2 - 20); ctx.lineTo(w / 2, h / 2 + 20);
+  ctx.stroke();
+
+  ctx.fillStyle = '#c00';
+  ctx.font = `${Math.max(11, Math.round(h * 0.015))}px Courier New`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(`Grid: ${size}px | ${w}×${h}`, 8, 8);
+}
+
+// ─── HSL → RGB ─────────────────────────────────────────
+function hsl2rgb(h, s, l) {
+  h /= 360;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + h * 12) % 12;
+    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+}
+
+// ─── Generator Dispatch ────────────────────────────────
+const generators = {
+  colorBars: genColorBars,
+  grayscale: genGrayscale,
+  checkerboard: genCheckerboard,
+  solidColor: genSolidColor,
+  rgbStripes: genRGBStripes,
+  gradient: genGradient,
+  siemensStar: genSiemensStar,
+  zonePlate: genZonePlate,
+  resChart: genResChart,
+  colorChecker: genColorChecker,
+  slantedEdge: genSlantedEdge,
+  deadPixel: genDeadPixel,
+};
+
+function generate() {
+  const w = +document.getElementById('canvasW').value;
+  const h = +document.getElementById('canvasH').value;
+  canvas.width = w; canvas.height = h;
+  ctx.clearRect(0, 0, w, h);
+  generators[currentType](w, h);
+  document.getElementById('exportInfo').textContent = `${w} × ${h} · ${currentType}`;
+}
+
+// ─── Export ────────────────────────────────────────────
+function exportPNG() {
+  const link = document.createElement('a');
+  link.download = `pattern_${currentType}_${canvas.width}x${canvas.height}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function exportBMP() {
+  // Export as uncompressed BMP
+  const w = canvas.width, h = canvas.height;
+  const imgData = ctx.getImageData(0, 0, w, h).data;
+  const rowBytes = Math.ceil(w * 3 / 4) * 4; // BMP rows padded to 4 bytes
+  const pixelDataSize = rowBytes * h;
+  const fileSize = 54 + pixelDataSize;
+
+  const buf = new ArrayBuffer(fileSize);
+  const view = new DataView(buf);
+
+  // BMP header
+  view.setUint8(0, 0x42); view.setUint8(1, 0x4D); // 'BM'
+  view.setUint32(2, fileSize, true);
+  view.setUint32(10, 54, true); // pixel data offset
+  // DIB header
+  view.setUint32(14, 40, true); // header size
+  view.setInt32(18, w, true);
+  view.setInt32(22, -h, true); // negative = top-down
+  view.setUint16(26, 1, true); // planes
+  view.setUint16(28, 24, true); // bpp
+  view.setUint32(34, pixelDataSize, true);
+
+  // Pixel data (BGR, padded rows)
+  let offset = 54;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const si = (y * w + x) * 4;
+      view.setUint8(offset++, imgData[si + 2]); // B
+      view.setUint8(offset++, imgData[si + 1]); // G
+      view.setUint8(offset++, imgData[si]);     // R
+    }
+    // Pad to 4-byte boundary
+    while (offset % 4 !== 54 % 4 && (offset - 54) % rowBytes !== 0) {
+      if ((offset - 54) % 4 === 0 && ((offset - 54) / h) >= rowBytes) break;
+    }
+    const written = offset - 54 - y * rowBytes;
+    while (written < rowBytes && (offset - 54) < pixelDataSize) {
+      view.setUint8(offset++, 0);
+      if ((offset - 54 - y * rowBytes) >= rowBytes) break;
+    }
+    offset = 54 + (y + 1) * rowBytes;
+  }
+
+  const blob = new Blob([buf], { type: 'image/bmp' });
+  const link = document.createElement('a');
+  link.download = `pattern_${currentType}_${w}x${h}.bmp`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function printPattern() {
+  const dataURL = canvas.toDataURL('image/png');
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>列印測試圖</title>
+    <style>
+      @page { margin: 0.5cm; }
+      body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fff; }
+      img { max-width: 100%; max-height: 100vh; }
+    </style></head><body>
+    <img src="${dataURL}" onload="window.print();">
+  </body></html>`);
+  win.document.close();
+}
+
+// ─── Init ──────────────────────────────────────────────
+buildExtraParams();
+generate();
+</script>
+</body>
+</html>
