@@ -62,7 +62,7 @@ body::after {
 #controls {
   position: relative;
   z-index: 200;
-  width: 360px;
+  width: 380px;
   overflow-y: auto;
   padding: 1rem 1.2rem 1.5rem;
   background: rgba(18,18,26,0.6);
@@ -87,7 +87,7 @@ body::after {
 #controls .app-sub {
   display: block;
   text-align: center;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   letter-spacing: 0.1em;
   margin-bottom: 1rem;
@@ -104,7 +104,7 @@ body::after {
 }
 
 #controls h2 {
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   margin: 0 0 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -118,7 +118,7 @@ body::after {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   color: var(--text);
   margin-bottom: 0.35rem;
   letter-spacing: 0.02em;
@@ -128,13 +128,13 @@ body::after {
 #controls input[type="text"],
 #controls select {
   width: 140px;
-  padding: 0.35rem 0.5rem;
+  padding: 0.4rem 0.55rem;
   background: var(--bg-muted);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -159,7 +159,7 @@ body::after {
 }
 #controls input[type="file"] {
   width: 140px;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-family: inherit;
 }
@@ -167,23 +167,23 @@ body::after {
   background: var(--bg-muted);
   color: var(--accent3);
   border: 1px solid var(--border);
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.55rem;
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   cursor: pointer;
   margin-right: 0.4rem;
 }
 #controls input[type="file"]::file-selector-button:hover { border-color: var(--accent3); }
 
 #controls button {
-  padding: 0.4rem 0.9rem;
+  padding: 0.5rem 1rem;
   border: 1px solid var(--accent);
   background: transparent;
   color: var(--accent);
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
@@ -209,7 +209,7 @@ body::after {
 #btnExportFrames:hover { background: var(--accent3); color: var(--bg); box-shadow: 0 0 10px var(--accent3), 0 0 20px rgba(0,212,255,0.5); }
 
 .hint {
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   margin: 0.2rem 0 0.5rem;
   letter-spacing: 0.02em;
@@ -221,14 +221,14 @@ body::after {
   grid-template-columns: 1fr auto;
   align-items: center;
   column-gap: 8px;
-  margin-bottom: 0.6rem;
-  font-size: 0.72rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.85rem;
   color: var(--text);
 }
 .slider-row > span { grid-column: 1; grid-row: 1; }
 .slider-row > input[type="number"] {
   grid-column: 2; grid-row: 1;
-  width: 68px !important;
+  width: 76px !important;
 }
 .slider-row > input[type="range"] {
   grid-column: 1 / span 2;
@@ -255,14 +255,14 @@ body::after {
 }
 
 #previewTime {
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   color: var(--accent3);
   margin-top: 0.5rem;
   letter-spacing: 0.08em;
   font-family: inherit;
 }
 #exportProgress {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--accent);
   margin-top: 0.5rem;
   min-height: 14px;
