@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<title>EIS_Generate</title>
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #1a1d22; color: #d8dde3; }
+#app { display: flex; height: 100vh; }
+
+#controls {
+  width: 340px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: #22262d;
+  border-right: 1px solid #333;
+}
+#controls h1 { font-size: 15px; margin: 4px 0 12px; color: #fff; }
+#controls h2 { font-size: 12px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.08em; color: #8a9199; border-bottom: 1px solid #333; padding-bottom: 3px; }
+#controls section { margin-bottom: 8px; }
+#controls label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+#controls input[type="number"],
+#controls input[type="text"],
+#controls select {
+  width: 140px;
+  padding: 3px 6px;
+  background: #1a1d22;
+  border: 1px solid #444;
+  color: #d8dde3;
+  border-radius: 3px;
+  font-size: 12px;
+}
+#controls input[type="color"] { width: 40px; height: 22px; border: 1px solid #444; background: #1a1d22; }
+#controls input[type="checkbox"] { margin: 0; }
+#controls input[type="file"] { width: 140px; font-size: 11px; color: #888; }
+#controls button {
+  background: #2d6cdf;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-right: 4px;
+  margin-top: 2px;
+}
+#controls button:hover { background: #4080f0; }
+#controls button:disabled { background: #444; cursor: not-allowed; }
+.hint { font-size: 11px; color: #777; margin: 2px 0 6px; }
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.slider-row > span {
+  grid-column: 1;
+  grid-row: 1;
+}
+.slider-row > input[type="number"] {
+  grid-column: 2;
+  grid-row: 1;
+  width: 64px !important;
+}
+.slider-row > input[type="range"] {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  width: 100%;
+  margin-top: 2px;
+  accent-color: #2d6cdf;
+}
+
+#stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0e1013;
+  overflow: hidden;
+}
+#preview {
+  max-width: 100%;
+  max-height: 100%;
+  background: #000;
+  box-shadow: 0 0 30px rgba(0,0,0,0.5);
+}
+
+#previewTime { font-size: 12px; color: #8a9199; margin-top: 6px; }
+#exportProgress { font-size: 11px; color: #8a9199; margin-top: 6px; min-height: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="controls">
+    <h1>EIS 測試影片產生器</h1>
+
+    <section>
+      <h2>影片規格</h2>
+      <label>寬度 <input type="number" id="width" value="1280" min="64" step="2"></label>
+      <label>高度 <input type="number" id="height" value="720" min="64" step="2"></label>
+      <label>FPS <input type="number" id="fps" value="30" min="1" max="240"></label>
+      <label>長度 (秒) <input type="number" id="duration" value="8" min="0.1" step="0.1"></label>
+    </section>
+
+    <section>
+      <h2>相機內參</h2>
+      <label>fx <input type="number" id="fx" value="" placeholder="預設 = 寬度"></label>
+      <label>fy <input type="number" id="fy" value="" placeholder="預設 = 寬度"></label>
+      <label>cx <input type="number" id="cx" value="" placeholder="預設 = 寬/2"></label>
+      <label>cy <input type="number" id="cy" value="" placeholder="預設 = 高/2"></label>
+    </section>
+
+    <section>
+      <h2>Gyro 規格</h2>
+      <label>取樣率 (Hz) <input type="number" id="gyroRate" value="200" min="1" max="10000"></label>
+      <p class="hint">固定輸出: gx=yaw, gy=pitch, gz=roll;檔案 orientation=xyz</p>
+    </section>
+
+    <section>
+      <h2>晃動模型 (Sinusoidal)</h2>
+      <p class="hint">振幅單位為度,頻率單位為 Hz;可拖曳或直接輸入數值</p>
+
+      <div class="slider-row" data-pair="sinAx" data-min="0" data-max="30" data-step="0.1">
+        <span>X 軸 (pitch) 振幅</span>
+        <input type="number" id="sinAx" value="0" step="0.1">
+      </div>
+      <div class="slider-row" data-pair="sinFx" data-min="0" data-max="20" data-step="0.1">
+        <span>X 軸 頻率</span>
+        <input type="number" id="sinFx" value="1" step="0.1">
+      </div>
+
+      <div class="slider-row" data-pair="sinAy" data-min="0" data-max="30" data-step="0.1">
+        <span>Y 軸 (yaw) 振幅</span>
+        <input type="number" id="sinAy" value="3" step="0.1">
+      </div>
+      <div class="slider-row" data-pair="sinFy" data-min="0" data-max="20" data-step="0.1">
+        <span>Y 軸 頻率</span>
+        <input type="number" id="sinFy" value="2" step="0.1">
+      </div>
+
+      <div class="slider-row" data-pair="sinAz" data-min="0" data-max="30" data-step="0.1">
+        <span>Z 軸 (roll) 振幅</span>
+        <input type="number" id="sinAz" value="0" step="0.1">
+      </div>
+      <div class="slider-row" data-pair="sinFz" data-min="0" data-max="20" data-step="0.1">
+        <span>Z 軸 頻率</span>
+        <input type="number" id="sinFz" value="1" step="0.1">
+      </div>
+    </section>
+
+    <section>
+      <h2>場景 - 背景</h2>
+      <label>類型
+        <select id="bgType">
+          <option value="checker" selected>棋盤格</option>
+          <option value="solid">純色</option>
+          <option value="gradient">漸層</option>
+          <option value="image">上傳圖片</option>
+        </select>
+      </label>
+      <label>主色 <input type="color" id="bgColor1" value="#202830"></label>
+      <label>副色 <input type="color" id="bgColor2" value="#e8e8e8"></label>
+      <label>棋盤格大小 <input type="number" id="bgCheckerSize" value="64" min="2"></label>
+      <label>上傳圖片 <input type="file" id="bgImage" accept="image/*"></label>
+    </section>
+
+    <section>
+      <h2>場景 - 圓球</h2>
+      <label>顯示 <input type="checkbox" id="ballShow" checked></label>
+      <label>半徑 <input type="number" id="ballR" value="60" min="1"></label>
+      <label>X 位置 (相對畫面) <input type="number" id="ballCx" value="0.5" min="0" max="1" step="0.01"></label>
+      <label>Y 位置 (相對畫面) <input type="number" id="ballCy" value="0.5" min="0" max="1" step="0.01"></label>
+      <label>顏色 <input type="color" id="ballColor" value="#ff5050"></label>
+    </section>
+
+    <section>
+      <h2>特徵物</h2>
+      <label>顯示方向箭頭 + 角標 <input type="checkbox" id="markersShow"></label>
+    </section>
+
+    <section>
+      <h2>預覽</h2>
+      <button id="btnPlay">▶ 播放</button>
+      <button id="btnStop">■ 停止</button>
+      <div id="previewTime">t = 0.000 s</div>
+    </section>
+
+    <section>
+      <h2>匯出</h2>
+      <button id="btnExportFrames">下載 JPG 序列 + gcsv</button>
+      <div id="exportProgress"></div>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <canvas id="preview"></canvas>
+  </main>
+</div>
+
+<!-- Dependency order matters: each script registers itself onto window.APP -->
+<script src="eis_generate_src/math/mat3.js"></script>
+<script src="eis_generate_src/math/so3.js"></script>
+<script src="eis_generate_src/motion/sinusoidal.js"></script>
+<script src="eis_generate_src/motion/index.js"></script>
+<script src="eis_generate_src/scene/background.js"></script>
+<script src="eis_generate_src/scene/ball.js"></script>
+<script src="eis_generate_src/scene/markers.js"></script>
+<script src="eis_generate_src/render/scene2d.js"></script>
+<script src="eis_generate_src/render/warpGL.js"></script>
+<script src="eis_generate_src/export/gcsv.js"></script>
+<script src="eis_generate_src/export/frames.js"></script>
+<script src="eis_generate_src/ui.js"></script>
+<script src="eis_generate_src/main.js"></script>
+</body>
+</html>
