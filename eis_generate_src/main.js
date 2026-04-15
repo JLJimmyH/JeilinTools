@@ -57,6 +57,7 @@
     previewCtx.clearRect(0, 0, W, H);
     previewCtx.drawImage(glCanvas, 0, 0);
     timeLabel.textContent = "t = " + t.toFixed(3) + " s";
+    document.dispatchEvent(new CustomEvent("previewframe", { detail: { t: t, duration: state.duration } }));
   }
 
   // ---------- Playback ----------

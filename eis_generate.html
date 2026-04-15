@@ -329,6 +329,45 @@ body::after {
   background-image: none;
   border-style: dashed;
 }
+
+/* Axis waveform groups */
+.axis-group {
+  background: rgba(10,10,15,0.5);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.axis-group[data-axis="x"] { border-left: 2px solid var(--accent); }
+.axis-group[data-axis="y"] { border-left: 2px solid var(--accent3); }
+.axis-group[data-axis="z"] { border-left: 2px solid var(--accent2); }
+
+.axis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+.axis-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: var(--text);
+}
+.axis-group[data-axis="x"] .axis-title { color: var(--accent); }
+.axis-group[data-axis="y"] .axis-title { color: var(--accent3); }
+.axis-group[data-axis="z"] .axis-title { color: var(--accent2); }
+
+.wave-preview {
+  display: block;
+  width: 100%;
+  height: 80px;
+  background: #05060a;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
 </style>
 </head>
 <body>
@@ -364,33 +403,45 @@ body::after {
 
     <section>
       <h2>晃動模型 (Sinusoidal)</h2>
-      <p class="hint">振幅單位為度,頻率單位為 Hz;可拖曳或直接輸入數值</p>
+      <p class="hint">使用下方滑桿調整;波形即時顯示實際晃動</p>
 
-      <div class="slider-row" data-pair="sinAx" data-min="0" data-max="30" data-step="0.1">
-        <span>X 軸 (pitch) 振幅</span>
-        <input type="number" id="sinAx" value="0" step="0.1">
-      </div>
-      <div class="slider-row" data-pair="sinFx" data-min="0" data-max="20" data-step="0.1">
-        <span>X 軸 頻率</span>
-        <input type="number" id="sinFx" value="1" step="0.1">
-      </div>
-
-      <div class="slider-row" data-pair="sinAy" data-min="0" data-max="30" data-step="0.1">
-        <span>Y 軸 (yaw) 振幅</span>
-        <input type="number" id="sinAy" value="3" step="0.1">
-      </div>
-      <div class="slider-row" data-pair="sinFy" data-min="0" data-max="20" data-step="0.1">
-        <span>Y 軸 頻率</span>
-        <input type="number" id="sinFy" value="2" step="0.1">
+      <div class="axis-group" data-axis="x">
+        <div class="axis-header"><span class="axis-title">X 軸 · Pitch</span></div>
+        <canvas class="wave-preview" data-wave="x" width="340" height="80"></canvas>
+        <div class="slider-row" data-pair="sinAx" data-min="0" data-max="30" data-step="0.1">
+          <span>振幅 (°)</span>
+          <input type="number" id="sinAx" value="0" step="0.1">
+        </div>
+        <div class="slider-row" data-pair="sinFx" data-min="0" data-max="20" data-step="0.1">
+          <span>頻率 (Hz)</span>
+          <input type="number" id="sinFx" value="1" step="0.1">
+        </div>
       </div>
 
-      <div class="slider-row" data-pair="sinAz" data-min="0" data-max="30" data-step="0.1">
-        <span>Z 軸 (roll) 振幅</span>
-        <input type="number" id="sinAz" value="0" step="0.1">
+      <div class="axis-group" data-axis="y">
+        <div class="axis-header"><span class="axis-title">Y 軸 · Yaw</span></div>
+        <canvas class="wave-preview" data-wave="y" width="340" height="80"></canvas>
+        <div class="slider-row" data-pair="sinAy" data-min="0" data-max="30" data-step="0.1">
+          <span>振幅 (°)</span>
+          <input type="number" id="sinAy" value="3" step="0.1">
+        </div>
+        <div class="slider-row" data-pair="sinFy" data-min="0" data-max="20" data-step="0.1">
+          <span>頻率 (Hz)</span>
+          <input type="number" id="sinFy" value="2" step="0.1">
+        </div>
       </div>
-      <div class="slider-row" data-pair="sinFz" data-min="0" data-max="20" data-step="0.1">
-        <span>Z 軸 頻率</span>
-        <input type="number" id="sinFz" value="1" step="0.1">
+
+      <div class="axis-group" data-axis="z">
+        <div class="axis-header"><span class="axis-title">Z 軸 · Roll</span></div>
+        <canvas class="wave-preview" data-wave="z" width="340" height="80"></canvas>
+        <div class="slider-row" data-pair="sinAz" data-min="0" data-max="30" data-step="0.1">
+          <span>振幅 (°)</span>
+          <input type="number" id="sinAz" value="0" step="0.1">
+        </div>
+        <div class="slider-row" data-pair="sinFz" data-min="0" data-max="20" data-step="0.1">
+          <span>頻率 (Hz)</span>
+          <input type="number" id="sinFz" value="1" step="0.1">
+        </div>
       </div>
     </section>
 
@@ -509,6 +560,126 @@ body::after {
 
   applyType(select.value);
   syncThumbnails();
+
+  // ─── Waveform previews (interactive) ────────────────
+  const MAX_AMP = 30;  // degrees
+  const MAX_FREQ = 20; // Hz
+  const AXES = [
+    { key: 'x', A: 'sinAx', F: 'sinFx', color: '#00ff88' },
+    { key: 'y', A: 'sinAy', F: 'sinFy', color: '#00d4ff' },
+    { key: 'z', A: 'sinAz', F: 'sinFz', color: '#ff00ff' },
+  ];
+  const durationEl = document.getElementById('duration');
+
+  let currentT = 0;
+
+  function drawWave(axis) {
+    const canvas = document.querySelector('.wave-preview[data-wave="' + axis.key + '"]');
+    if (!canvas) return;
+    // Resize backing store to visual size for crispness
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+    }
+    const W = canvas.width, H = canvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    const A = parseFloat(document.getElementById(axis.A).value) || 0;
+    const F = parseFloat(document.getElementById(axis.F).value) || 0;
+    const dur = Math.max(0.1, parseFloat(durationEl.value) || 1);
+
+    // Grid: center line + ±max markers
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
+    ctx.stroke();
+
+    // Axis labels (A / F readouts)
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = (10 * dpr) + 'px "Courier New", monospace';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText('A=' + A.toFixed(1) + '°', 4 * dpr, 3 * dpr);
+    ctx.textAlign = 'center';
+    ctx.fillText('F=' + F.toFixed(2) + 'Hz', W / 2, 3 * dpr);
+    ctx.textAlign = 'right';
+    ctx.fillText(dur.toFixed(1) + 's', W - 4 * dpr, 3 * dpr);
+    ctx.textAlign = 'left';
+
+    // Current amplitude band (shows selected A range)
+    if (A > 0) {
+      const bandH = (A / MAX_AMP) * (H / 2);
+      ctx.fillStyle = axis.color + '22';
+      ctx.fillRect(0, H / 2 - bandH, W, bandH * 2);
+    }
+
+    // Waveform
+    ctx.strokeStyle = axis.color;
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.shadowColor = axis.color;
+    ctx.shadowBlur = 4 * dpr;
+    ctx.beginPath();
+    const steps = W;
+    for (let i = 0; i <= steps; i++) {
+      const t = (i / steps) * dur;
+      const y = A * Math.sin(2 * Math.PI * F * t);
+      const px = i;
+      const py = H / 2 - (y / MAX_AMP) * (H / 2);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Playhead (vertical line + dot on curve) at currentT
+    const tClamped = Math.max(0, Math.min(dur, currentT));
+    const px = (tClamped / dur) * W;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(px, 0); ctx.lineTo(px, H);
+    ctx.stroke();
+
+    const yVal = A * Math.sin(2 * Math.PI * F * tClamped);
+    const dotY = H / 2 - (yVal / MAX_AMP) * (H / 2);
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = axis.color;
+    ctx.shadowBlur = 6 * dpr;
+    ctx.beginPath();
+    ctx.arc(px, dotY, 3 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Current-value readout (moving dot)
+    ctx.fillStyle = axis.color;
+    ctx.font = 'bold ' + (10 * dpr) + 'px "Courier New", monospace';
+    ctx.textBaseline = 'bottom';
+    ctx.textAlign = 'center';
+    ctx.fillText(yVal.toFixed(2) + '°', W / 2, H - 3 * dpr);
+    ctx.textAlign = 'left';
+  }
+
+  function drawAllWaves() { AXES.forEach(drawWave); }
+
+  document.addEventListener('previewframe', function (e) {
+    currentT = e.detail.t;
+    drawAllWaves();
+  });
+
+
+  // Redraw when relevant inputs change
+  const watched = ['sinAx','sinFx','sinAy','sinFy','sinAz','sinFz','duration'];
+  watched.forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', drawAllWaves);
+  });
+
+  window.addEventListener('resize', drawAllWaves);
+  // Initial draw after layout settles
+  requestAnimationFrame(drawAllWaves);
 })();
 </script>
 </body>
