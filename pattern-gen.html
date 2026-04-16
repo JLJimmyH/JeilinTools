@@ -157,6 +157,7 @@ body::after {
 
 /* Canvas area — clean, no overlays */
 .canvas-wrap {
+  position: relative;
   display: flex; justify-content: center; align-items: center;
   min-height: 300px; overflow: auto;
   background: #000;
@@ -165,6 +166,35 @@ body::after {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+/* Fullscreen button */
+.btn-fullscreen {
+  position: absolute; top: 10px; right: 10px; z-index: 210;
+  width: 36px; height: 36px;
+  background: rgba(0,0,0,0.6); border: 1px solid var(--accent);
+  color: var(--accent); border-radius: 6px;
+  cursor: pointer; font-size: 1.1rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; opacity: 0.6;
+}
+.btn-fullscreen:hover { opacity: 1; background: var(--accent); color: var(--bg); box-shadow: var(--glow-sm); }
+
+/* Fullscreen mode */
+.fullscreen-active {
+  position: fixed !important; inset: 0 !important; z-index: 9999 !important;
+  margin: 0 !important; padding: 0 !important;
+  border-radius: 0 !important; border: none !important;
+  width: 100vw !important; height: 100vh !important;
+}
+.fullscreen-active .canvas-wrap {
+  width: 100vw; height: 100vh;
+  min-height: 100vh;
+}
+.fullscreen-active #patternCanvas {
+  max-width: none;
+  width: 100vw; height: 100vh;
+  object-fit: contain;
 }
 
 /* Export panel */
@@ -292,8 +322,9 @@ body::after {
 
   <!-- Canvas — no styling overlays, clean for camera capture -->
   <div class="panel panel--canvas">
-    <div class="canvas-wrap">
+    <div class="canvas-wrap" id="canvasWrap">
       <canvas id="patternCanvas"></canvas>
+      <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="全螢幕 (F)">⛶</button>
     </div>
   </div>
 
@@ -1202,6 +1233,52 @@ function genImageScroll(w, h, st) {
 
   drawMotionHUD(w, h, st, `${speed} px/f · ${dir === 'h' ? '水平' : '垂直'} · ${iw}×${ih}`);
 }
+
+// ─── Fullscreen ───────────────────────────────────────
+let isFullscreen = false;
+
+function toggleFullscreen() {
+  const panel = document.querySelector('.panel--canvas');
+  const btn = document.getElementById('btnFullscreen');
+  isFullscreen = !isFullscreen;
+
+  if (isFullscreen) {
+    panel.classList.add('fullscreen-active');
+    btn.textContent = '✕';
+    btn.title = '退出全螢幕 (ESC / F)';
+    // Use native Fullscreen API if available
+    if (panel.requestFullscreen) {
+      panel.requestFullscreen().catch(() => {});
+    }
+  } else {
+    panel.classList.remove('fullscreen-active');
+    btn.textContent = '⛶';
+    btn.title = '全螢幕 (F)';
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+}
+
+// Sync state when exiting native fullscreen via ESC
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && isFullscreen) {
+    isFullscreen = false;
+    document.querySelector('.panel--canvas').classList.remove('fullscreen-active');
+    const btn = document.getElementById('btnFullscreen');
+    btn.textContent = '⛶';
+    btn.title = '全螢幕 (F)';
+  }
+});
+
+// Keyboard shortcut: F to toggle, ESC to exit
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'f' || e.key === 'F') {
+    e.preventDefault();
+    toggleFullscreen();
+  }
+});
 
 // ─── Generator Dispatch ────────────────────────────────
 const generators = {
