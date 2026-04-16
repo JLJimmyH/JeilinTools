@@ -571,7 +571,7 @@ let fps = 30;
 let mode = 'sideBySide';
 let ovPos = 0.5;
 let playing = false;
-let seekGen = 0;
+let seekGen = 0; // legacy, kept for compat
 let diffMult = 5;
 let rafId = null;
 let _tA = null, _tB = null;
@@ -832,6 +832,12 @@ $('btnTrimReset').addEventListener('click', () => {
 });
 
 // ======================== Seeking ========================
+// Queue-based seek: only one seek runs at a time.
+// If a new seekTo arrives while one is in-flight, it replaces the pending
+// target so the in-flight seek finishes and immediately starts the latest one.
+let _seeking = false;
+let _pendingFrame = null;
+
 function seekVid(v, t) {
     return new Promise(resolve => {
         const dur = v.duration;
@@ -846,7 +852,6 @@ function seekVid(v, t) {
             resolve();
         };
         v.addEventListener('seeked', done);
-        // Safety timeout to prevent infinite hang
         setTimeout(done, 500);
         v.currentTime = t;
     });
@@ -856,14 +861,33 @@ async function seekTo(f) {
     if (exporting) return;
     f = Math.max(0, Math.min(f, total - 1));
     frame = f;
-    const gen = ++seekGen;
-    const tA = Math.min(trimA.start + f / fps, vidA.duration - 0.001);
-    const tB = Math.min(trimB.start + f / fps, vidB.duration - 0.001);
     frameSlider.value = f;
     $('inpGoto').value = f;
     updateInfo();
+
+    // If a seek is already running, just record what we want and bail.
+    // The running seek will pick it up when it finishes.
+    if (_seeking) {
+        _pendingFrame = f;
+        return;
+    }
+
+    _seeking = true;
+    _pendingFrame = null;
+
+    const tA = Math.min(trimA.start + f / fps, vidA.duration - 0.001);
+    const tB = Math.min(trimB.start + f / fps, vidB.duration - 0.001);
     await Promise.all([seekVid(vidA, tA), seekVid(vidB, tB)]);
-    if (gen === seekGen) render();
+    render();
+
+    _seeking = false;
+
+    // If newer seek arrived while we were busy, run that one now
+    if (_pendingFrame !== null) {
+        const next = _pendingFrame;
+        _pendingFrame = null;
+        seekTo(next);
+    }
 }
 
 function updateInfo() {
