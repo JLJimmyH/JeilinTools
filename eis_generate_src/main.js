@@ -6,13 +6,11 @@
   const WarpGL = APP.render.WarpGL;
   const { intrinsic } = APP.mat3;
   const buildGcsv = APP.exports.buildGcsv;
-  const { pickDirectory, writeFramesAndScripts } = APP.exports;
+  const { exportMp4, cancelMp4 } = APP.exports;
 
   const previewCanvas = document.getElementById("preview");
   const previewCtx = previewCanvas.getContext("2d");
   const timeLabel = document.getElementById("previewTime");
-  const progressEl = document.getElementById("exportProgress");
-
   const glCanvas = document.createElement("canvas");
   const warpGL = new WarpGL(glCanvas);
 
@@ -116,51 +114,69 @@
     img.src = URL.createObjectURL(file);
   });
 
-  // ---------- Exports ----------
-  document.getElementById("btnExportFrames").addEventListener("click", async function () {
-    const btn = document.getElementById("btnExportFrames");
+  // ---------- Export MP4 ----------
+  const mp4Overlay = document.getElementById("exportOverlay");
+  const mp4BarFill = document.getElementById("mp4BarFill");
+  const mp4Status = document.getElementById("mp4Status");
+
+  document.getElementById("btnCancelMp4").addEventListener("click", function () {
+    cancelMp4();
+  });
+
+  document.getElementById("btnExportMp4").addEventListener("click", async function () {
+    const btn = document.getElementById("btnExportMp4");
     playing = false;
-    let dirHandle;
-    try {
-      dirHandle = await pickDirectory();
-    } catch (e) {
-      if (e.name === "AbortError") return;
-      progressEl.textContent = "無法選擇資料夾: " + e.message;
-      return;
-    }
-
     btn.disabled = true;
-    try {
-      const fps = state.fps;
-      const N = Math.round(state.duration * fps);
-      if (sceneDirty) refreshScene();
+    mp4Overlay.classList.add("visible");
+    mp4BarFill.style.width = "0%";
+    mp4Status.textContent = "準備中...";
 
+    try {
+      if (sceneDirty) refreshScene();
+      const fps2 = state.fps;
+      const N = Math.round(state.duration * fps2);
       const Rfn = buildTrajectory(state);
+
+      // Build gcsv and trigger its download alongside the mp4
       const gcsvText = buildGcsv(Rfn, state);
 
-      await writeFramesAndScripts({
-        dirHandle,
+      await exportMp4({
+        canvas: previewCanvas,
         frameCount: N,
-        fps,
-        getFrameBlob: async function (i) {
-          const t = i / fps;
+        fps: fps2,
+        renderFrame: async function (i) {
+          const t = i / fps2;
           renderAt(t);
-          progressEl.textContent = "渲染 + 寫入影格 " + (i + 1) + "/" + N;
-          return await new Promise(function (res) {
-            previewCanvas.toBlob(res, "image/jpeg", 0.92);
-          });
         },
-        gcsvText,
-        progress: function (msg) { progressEl.textContent = msg; },
+        progress: function (pct, msg) {
+          mp4BarFill.style.width = pct + "%";
+          mp4Status.textContent = msg;
+        },
+        fileName: "eis_output_" + state.width + "x" + state.height + "_" + fps2 + "fps.mp4",
       });
 
-      progressEl.textContent = "完成:JPG + output.gcsv + encode.bat";
+      // Also download gcsv
+      const gcsvBlob = new Blob([gcsvText], { type: "text/csv" });
+      const gcsvUrl = URL.createObjectURL(gcsvBlob);
+      const gcsvA = document.createElement("a");
+      gcsvA.href = gcsvUrl;
+      gcsvA.download = "output.gcsv";
+      gcsvA.click();
+      setTimeout(function () { URL.revokeObjectURL(gcsvUrl); }, 3000);
+
+      mp4Status.textContent = "完成！MP4 + gcsv 已下載";
+      await new Promise(function (r) { setTimeout(r, 1200); });
     } catch (e) {
-      progressEl.textContent = "匯出失敗: " + e.message;
-      console.error(e);
-    } finally {
-      btn.disabled = false;
+      if (e.message !== "已取消匯出") {
+        console.error("MP4 export error:", e);
+        alert("MP4 匯出失敗：\n" + e.message);
+      }
+      mp4Status.textContent = "";
     }
+
+    mp4Overlay.classList.remove("visible");
+    btn.disabled = false;
+    renderAt(0);
   });
 
   // ---------- Init ----------

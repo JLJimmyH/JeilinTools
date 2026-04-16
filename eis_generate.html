@@ -205,8 +205,64 @@ body::after {
 }
 #btnStop { border-color: var(--accent2); color: var(--accent2); }
 #btnStop:hover { background: var(--accent2); color: var(--bg); box-shadow: 0 0 10px var(--accent2), 0 0 20px rgba(255,0,255,0.5); }
-#btnExportFrames { border-color: var(--accent3); color: var(--accent3); }
-#btnExportFrames:hover { background: var(--accent3); color: var(--bg); box-shadow: 0 0 10px var(--accent3), 0 0 20px rgba(0,212,255,0.5); }
+#btnExportMp4 { border-color: #ffaa00; color: #ffaa00; }
+#btnExportMp4:hover { background: #ffaa00; color: var(--bg); box-shadow: 0 0 10px #ffaa00, 0 0 20px rgba(255,170,0,0.5); }
+
+/* Export overlay */
+.export-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.export-overlay.visible { display: flex; }
+.export-dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  min-width: 360px;
+  font-family: inherit;
+}
+.export-dialog h3 {
+  font-size: 1rem;
+  color: var(--accent);
+  text-shadow: var(--glow-sm);
+  margin-bottom: 1rem;
+  letter-spacing: 0.1em;
+}
+.export-bar {
+  height: 6px;
+  background: var(--bg-muted);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.8rem;
+}
+.export-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.15s;
+  box-shadow: var(--glow-sm);
+}
+.export-dialog .status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  min-height: 1.2em;
+  letter-spacing: 0.05em;
+}
+#controls .export-dialog button {
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+#controls .export-dialog button:hover {
+  background: var(--accent2);
+  color: var(--bg);
+}
 
 .hint {
   font-size: 0.72rem;
@@ -488,14 +544,22 @@ body::after {
 
     <section>
       <h2>匯出</h2>
-      <button id="btnExportFrames">下載 JPG 序列 + gcsv</button>
-      <div id="exportProgress"></div>
+      <button id="btnExportMp4">匯出 MP4 + gcsv</button>
     </section>
   </aside>
 
   <main id="stage">
     <canvas id="preview"></canvas>
   </main>
+</div>
+
+<div class="export-overlay" id="exportOverlay">
+  <div class="export-dialog">
+    <h3>匯出 MP4</h3>
+    <div class="export-bar"><div class="export-bar-fill" id="mp4BarFill"></div></div>
+    <div class="status" id="mp4Status">準備中...</div>
+    <button id="btnCancelMp4">取消</button>
+  </div>
 </div>
 
 <!-- Dependency order matters: each script registers itself onto window.APP -->
@@ -509,7 +573,7 @@ body::after {
 <script src="eis_generate_src/render/scene2d.js"></script>
 <script src="eis_generate_src/render/warpGL.js"></script>
 <script src="eis_generate_src/export/gcsv.js"></script>
-<script src="eis_generate_src/export/frames.js"></script>
+<script src="eis_generate_src/export/mp4.js"></script>
 <script src="eis_generate_src/ui.js"></script>
 <script src="eis_generate_src/main.js"></script>
 <script>

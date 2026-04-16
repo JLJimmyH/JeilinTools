@@ -613,8 +613,11 @@ function readTrimInputs() {
     trimA.end   = Math.min(vidA.duration, parseFloat($('trimAE').value) || vidA.duration);
     trimB.start = Math.max(0, parseFloat($('trimBS').value) || 0);
     trimB.end   = Math.min(vidB.duration, parseFloat($('trimBE').value) || vidB.duration);
-    if (trimA.end <= trimA.start) trimA.end = trimA.start + 1 / fps;
-    if (trimB.end <= trimB.start) trimB.end = trimB.start + 1 / fps;
+    // Clamp start within valid range
+    trimA.start = Math.min(trimA.start, vidA.duration - 1 / fps);
+    trimB.start = Math.min(trimB.start, vidB.duration - 1 / fps);
+    if (trimA.end <= trimA.start) trimA.end = Math.min(trimA.start + 1 / fps, vidA.duration);
+    if (trimB.end <= trimB.start) trimB.end = Math.min(trimB.start + 1 / fps, vidB.duration);
 }
 
 function recalcRange() {
@@ -673,10 +676,20 @@ $('btnTrimReset').addEventListener('click', () => {
 // ======================== Seeking ========================
 function seekVid(v, t) {
     return new Promise(resolve => {
-        t = Math.max(0, Math.min(t, v.duration));
-        if (Math.abs(v.currentTime - t) < 0.0005) { resolve(); return; }
-        const h = () => { v.removeEventListener('seeked', h); resolve(); };
-        v.addEventListener('seeked', h);
+        const dur = v.duration;
+        if (!isFinite(dur) || dur <= 0) { resolve(); return; }
+        t = Math.max(0, Math.min(t, dur - 0.001));
+        if (Math.abs(v.currentTime - t) < 0.001) { resolve(); return; }
+        let settled = false;
+        const done = () => {
+            if (settled) return;
+            settled = true;
+            v.removeEventListener('seeked', done);
+            resolve();
+        };
+        v.addEventListener('seeked', done);
+        // Safety timeout to prevent infinite hang
+        setTimeout(done, 500);
         v.currentTime = t;
     });
 }
@@ -686,8 +699,8 @@ async function seekTo(f) {
     f = Math.max(0, Math.min(f, total - 1));
     frame = f;
     const gen = ++seekGen;
-    const tA = trimA.start + f / fps;
-    const tB = trimB.start + f / fps;
+    const tA = Math.min(trimA.start + f / fps, vidA.duration - 0.001);
+    const tB = Math.min(trimB.start + f / fps, vidB.duration - 0.001);
     frameSlider.value = f;
     $('inpGoto').value = f;
     updateInfo();
@@ -855,12 +868,15 @@ function stopPlay() {
 function playLoop() {
     if (!playing) return;
     // Sync B to A (accounting for different trim offsets)
-    const expectedBTime = trimB.start + (vidA.currentTime - trimA.start);
+    const relTime = vidA.currentTime - trimA.start;
+    // Stop if A has gone past its trim end
+    if (vidA.currentTime >= trimA.end - 0.001) { stopPlay(); return; }
+    const expectedBTime = Math.max(0, Math.min(trimB.start + relTime, vidB.duration - 0.001));
     if (Math.abs(vidB.currentTime - expectedBTime) > 0.04) {
         vidB.currentTime = expectedBTime;
     }
     render();
-    frame = Math.round((vidA.currentTime - trimA.start) * fps);
+    frame = Math.round(relTime * fps);
     frame = Math.max(0, Math.min(frame, total - 1));
     frameSlider.value = frame;
     $('inpGoto').value = frame;
