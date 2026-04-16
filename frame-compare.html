@@ -256,27 +256,78 @@ header h1 { font-size: 17px; font-weight: 600; color: #f0f6fc; }
     margin-bottom: 10px;
     border-bottom: 1px solid #21262d;
 }
+.trim-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
 .trim-title {
-    font-size: 12px; color: #484f58; margin-bottom: 8px;
+    font-size: 12px; color: #484f58;
     text-transform: uppercase; letter-spacing: 0.5px;
 }
-.trim-grid {
-    display: flex; gap: 16px; flex-wrap: wrap;
+.trim-track-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
 }
-.trim-vid {
+.trim-track-row strong {
+    color: #58a6ff; font-size: 13px; min-width: 14px;
+}
+.trim-track-wrap {
+    flex: 1; position: relative;
+    height: 28px; user-select: none;
+}
+.trim-track {
+    position: absolute; top: 10px; left: 0; right: 0;
+    height: 8px; background: #21262d; border-radius: 4px;
+}
+.trim-region {
+    position: absolute; top: 10px; height: 8px;
+    background: rgba(88,166,255,0.35);
+    border-radius: 2px;
+    pointer-events: none;
+}
+.trim-handle {
+    position: absolute; top: 0; width: 14px; height: 28px;
+    cursor: ew-resize; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: bold; color: #58a6ff;
+    font-family: monospace; line-height: 1;
+    transition: color 0.1s;
+}
+.trim-handle:hover, .trim-handle.dragging { color: #79c0ff; }
+.trim-handle--start { transform: translateX(-100%); }
+.trim-handle--end { /* default position is left edge of handle at the end point */ }
+.trim-playhead {
+    position: absolute; top: 6px; width: 2px; height: 16px;
+    background: #f0f6fc; border-radius: 1px;
+    pointer-events: none; z-index: 4;
+    transform: translateX(-1px);
+}
+.trim-inputs {
     display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: #8b949e;
+    font-size: 12px; color: #8b949e;
+    margin: 2px 0 8px 22px;
 }
-.trim-vid strong { color: #58a6ff; min-width: 14px; }
-.trim-vid input[type="number"] {
+.trim-inputs strong { color: #58a6ff; min-width: 14px; }
+.trim-inputs input[type="number"] {
     width: 80px; background: #0d1117; border: 1px solid #30363d;
     color: #c9d1d9; padding: 3px 6px; border-radius: 4px; font-size: 12px;
 }
-.trim-vid .sep { margin: 0 2px; color: #484f58; }
 .trim-info {
-    font-size: 12px; color: #8b949e; margin-top: 6px;
+    font-size: 12px; color: #8b949e; margin-top: 4px;
 }
 .trim-info b { color: #c9d1d9; }
+.trim-output {
+    font-size: 13px; color: #e6edf3; margin-top: 6px;
+    padding: 6px 10px;
+    background: #21262d; border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+}
+.trim-output b { color: #58a6ff; }
+.trim-output .trim-out-warn {
+    color: #f0c060; font-size: 12px; margin-left: 8px;
+}
 
 /* ===== Warning ===== */
 .warn {
@@ -346,8 +397,8 @@ header h1 { font-size: 17px; font-weight: 600; color: #f0f6fc; }
     .settings-row { gap: 8px; }
     .settings-row label { font-size: 12px; }
     .shortcuts { display: none; }
-    .trim-grid { flex-direction: column; gap: 8px; }
-    .trim-vid input[type="number"] { width: 70px; }
+    .trim-track-row strong { font-size: 12px; }
+    .trim-handle { width: 20px; height: 34px; font-size: 20px; }
     .export-dialog {
         min-width: auto;
         width: calc(100vw - 32px);
@@ -426,31 +477,44 @@ header h1 { font-size: 17px; font-weight: 600; color: #f0f6fc; }
     <div class="controls">
         <!-- Trim -->
         <div class="trim-section" id="trimSection">
-            <div class="trim-title">時間範圍</div>
-            <div class="trim-grid">
-                <div class="trim-vid">
-                    <strong>A</strong>
-                    <span>起始</span>
-                    <input type="number" id="trimAS" step="0.001" min="0" value="0"> s
-                    <button class="btn btn-sm" id="btnTAS" title="設為目前幀的時間">&larr;幀</button>
-                    <span class="sep">~</span>
-                    <span>結束</span>
-                    <input type="number" id="trimAE" step="0.001" min="0" value="0"> s
-                    <button class="btn btn-sm" id="btnTAE" title="設為目前幀的時間">&larr;幀</button>
-                </div>
-                <div class="trim-vid">
-                    <strong>B</strong>
-                    <span>起始</span>
-                    <input type="number" id="trimBS" step="0.001" min="0" value="0"> s
-                    <button class="btn btn-sm" id="btnTBS" title="設為目前幀的時間">&larr;幀</button>
-                    <span class="sep">~</span>
-                    <span>結束</span>
-                    <input type="number" id="trimBE" step="0.001" min="0" value="0"> s
-                    <button class="btn btn-sm" id="btnTBE" title="設為目前幀的時間">&larr;幀</button>
-                </div>
+            <div class="trim-header">
+                <span class="trim-title">時間範圍</span>
                 <button class="btn btn-sm" id="btnTrimReset" title="重設為原始範圍">重設</button>
             </div>
+            <!-- Video A track -->
+            <div class="trim-track-row">
+                <strong>A</strong>
+                <div class="trim-track-wrap" id="trackA">
+                    <div class="trim-track"></div>
+                    <div class="trim-region" id="regionA"></div>
+                    <div class="trim-handle trim-handle--start" id="handleAS">[</div>
+                    <div class="trim-handle trim-handle--end" id="handleAE">]</div>
+                    <div class="trim-playhead" id="playheadA"></div>
+                </div>
+            </div>
+            <div class="trim-inputs">
+                <strong>A</strong>
+                <input type="number" id="trimAS" step="0.001" min="0" value="0" title="起始時間"> s ~
+                <input type="number" id="trimAE" step="0.001" min="0" value="0" title="結束時間"> s
+            </div>
+            <!-- Video B track -->
+            <div class="trim-track-row">
+                <strong>B</strong>
+                <div class="trim-track-wrap" id="trackB">
+                    <div class="trim-track"></div>
+                    <div class="trim-region" id="regionB"></div>
+                    <div class="trim-handle trim-handle--start" id="handleBS">[</div>
+                    <div class="trim-handle trim-handle--end" id="handleBE">]</div>
+                    <div class="trim-playhead" id="playheadB"></div>
+                </div>
+            </div>
+            <div class="trim-inputs">
+                <strong>B</strong>
+                <input type="number" id="trimBS" step="0.001" min="0" value="0" title="起始時間"> s ~
+                <input type="number" id="trimBE" step="0.001" min="0" value="0" title="結束時間"> s
+            </div>
             <div class="trim-info" id="trimInfo"></div>
+            <div class="trim-output" id="trimOutput"></div>
         </div>
 
         <!-- Nav -->
@@ -571,10 +635,6 @@ function onReady() {
     // Init trim to full range
     trimA.start = 0; trimA.end = vidA.duration;
     trimB.start = 0; trimB.end = vidB.duration;
-    $('trimAS').value = '0.000'; $('trimAE').value = vidA.duration.toFixed(3);
-    $('trimBS').value = '0.000'; $('trimBE').value = vidB.duration.toFixed(3);
-    $('trimAS').max = vidA.duration; $('trimAE').max = vidA.duration;
-    $('trimBS').max = vidB.duration; $('trimBE').max = vidB.duration;
 
     recalcRange();
     initCanvases();
@@ -607,19 +667,7 @@ function initCanvases() {
     cDiff.width = wA; cDiff.height = hA;
 }
 
-// ======================== Trim ========================
-function readTrimInputs() {
-    trimA.start = Math.max(0, parseFloat($('trimAS').value) || 0);
-    trimA.end   = Math.min(vidA.duration, parseFloat($('trimAE').value) || vidA.duration);
-    trimB.start = Math.max(0, parseFloat($('trimBS').value) || 0);
-    trimB.end   = Math.min(vidB.duration, parseFloat($('trimBE').value) || vidB.duration);
-    // Clamp start within valid range
-    trimA.start = Math.min(trimA.start, vidA.duration - 1 / fps);
-    trimB.start = Math.min(trimB.start, vidB.duration - 1 / fps);
-    if (trimA.end <= trimA.start) trimA.end = Math.min(trimA.start + 1 / fps, vidA.duration);
-    if (trimB.end <= trimB.start) trimB.end = Math.min(trimB.start + 1 / fps, vidB.duration);
-}
-
+// ======================== Trim (visual bracket UI) ========================
 function recalcRange() {
     const durA = trimA.end - trimA.start;
     const durB = trimB.end - trimB.start;
@@ -628,48 +676,158 @@ function recalcRange() {
     frameSlider.max = total - 1;
     $('inpGoto').max = total - 1;
     frame = Math.min(frame, total - 1);
-    updateTrimInfo();
+    updateTrimUI();
 }
 
-function updateTrimInfo() {
-    const durA = (trimA.end - trimA.start).toFixed(3);
-    const durB = (trimB.end - trimB.start).toFixed(3);
+function updateTrimUI() {
+    renderTrack('A', trimA, vidA);
+    renderTrack('B', trimB, vidB);
+    syncInputsFromState();
+
+    const durA = trimA.end - trimA.start;
+    const durB = trimB.end - trimB.start;
+    const outputDur = Math.min(durA, durB);
+
+    // Per-track info
     $('trimInfo').innerHTML =
-        `A: <b>${durA}</b>s &nbsp; B: <b>${durB}</b>s &nbsp; 比較範圍: <b>${Math.min(durA, durB)}</b>s = <b>${total}</b> 幀`;
+        `A 選取: <b>${durA.toFixed(3)}</b>s &nbsp; B 選取: <b>${durB.toFixed(3)}</b>s`;
+
+    // Output duration row with warning
+    let outHtml = `輸出總長: <b>${outputDur.toFixed(3)}</b>s = <b>${total}</b> 幀`;
+    if (Math.abs(durA - durB) > 0.01) {
+        const shorter = durA < durB ? 'A' : 'B';
+        outHtml += `<span class="trim-out-warn">以較短的 ${shorter} 為準 (差 ${Math.abs(durA - durB).toFixed(3)}s)</span>`;
+    }
+    $('trimOutput').innerHTML = outHtml;
 }
+
+function renderTrack(which, trim, vid) {
+    if (!vid) return;
+    const dur = vid.duration;
+    const startPct = (trim.start / dur) * 100;
+    const endPct = (trim.end / dur) * 100;
+    const region = $(which === 'A' ? 'regionA' : 'regionB');
+    const hStart = $(which === 'A' ? 'handleAS' : 'handleBS');
+    const hEnd = $(which === 'A' ? 'handleAE' : 'handleBE');
+
+    region.style.left = startPct + '%';
+    region.style.width = (endPct - startPct) + '%';
+    hStart.style.left = startPct + '%';
+    hEnd.style.left = endPct + '%';
+}
+
+function updatePlayhead() {
+    if (!vidA || !vidB) return;
+    const tRel = frame / fps;
+    const pA = $('playheadA');
+    const pB = $('playheadB');
+    const posA = ((trimA.start + tRel) / vidA.duration) * 100;
+    const posB = ((trimB.start + tRel) / vidB.duration) * 100;
+    pA.style.left = Math.min(posA, 100) + '%';
+    pB.style.left = Math.min(posB, 100) + '%';
+}
+
+// ---- Input ↔ State sync (no autoClamp — each track is independent) ----
+let _syncingInputs = false;
+
+function syncInputsFromState() {
+    _syncingInputs = true;
+    $('trimAS').value = trimA.start.toFixed(3);
+    $('trimAE').value = trimA.end.toFixed(3);
+    $('trimBS').value = trimB.start.toFixed(3);
+    $('trimBE').value = trimB.end.toFixed(3);
+    _syncingInputs = false;
+}
+
+function readInputsToState() {
+    if (_syncingInputs) return;
+    const minGap = 1 / fps;
+    if (vidA) {
+        let as = Math.max(0, parseFloat($('trimAS').value) || 0);
+        let ae = Math.min(vidA.duration, parseFloat($('trimAE').value) || vidA.duration);
+        if (ae <= as) ae = Math.min(as + minGap, vidA.duration);
+        trimA.start = as; trimA.end = ae;
+    }
+    if (vidB) {
+        let bs = Math.max(0, parseFloat($('trimBS').value) || 0);
+        let be = Math.min(vidB.duration, parseFloat($('trimBE').value) || vidB.duration);
+        if (be <= bs) be = Math.min(bs + minGap, vidB.duration);
+        trimB.start = bs; trimB.end = be;
+    }
+}
+
+['trimAS','trimAE','trimBS','trimBE'].forEach(id => {
+    $(id).addEventListener('change', () => {
+        readInputsToState();
+        recalcRange();
+        seekTo(frame);
+    });
+});
 
 function onTrimChange() {
-    readTrimInputs();
     recalcRange();
     seekTo(frame);
 }
 
-// Trim input events
-['trimAS','trimAE','trimBS','trimBE'].forEach(id => {
-    $(id).addEventListener('change', onTrimChange);
-});
+// ---- Drag logic for bracket handles ----
+let trimDrag = null; // { which: 'A'|'B', edge: 'start'|'end', trackEl }
 
-// "Set to current frame" buttons
-$('btnTAS').addEventListener('click', () => {
-    $('trimAS').value = (trimA.start + frame / fps).toFixed(3);
-    onTrimChange();
-});
-$('btnTAE').addEventListener('click', () => {
-    $('trimAE').value = (trimA.start + frame / fps).toFixed(3);
-    onTrimChange();
-});
-$('btnTBS').addEventListener('click', () => {
-    $('trimBS').value = (trimB.start + frame / fps).toFixed(3);
-    onTrimChange();
-});
-$('btnTBE').addEventListener('click', () => {
-    $('trimBE').value = (trimB.start + frame / fps).toFixed(3);
-    onTrimChange();
-});
+function initTrimDrag(handleId, which, edge) {
+    const handle = $(handleId);
+    const trackId = which === 'A' ? 'trackA' : 'trackB';
+
+    function onDown(e) {
+        e.preventDefault();
+        handle.classList.add('dragging');
+        trimDrag = { which, edge, trackEl: $(trackId) };
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown);
+}
+
+initTrimDrag('handleAS', 'A', 'start');
+initTrimDrag('handleAE', 'A', 'end');
+initTrimDrag('handleBS', 'B', 'start');
+initTrimDrag('handleBE', 'B', 'end');
+
+function trimDragMove(clientX) {
+    if (!trimDrag) return;
+    const { which, edge, trackEl } = trimDrag;
+    const rect = trackEl.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const vid = which === 'A' ? vidA : vidB;
+    const trim = which === 'A' ? trimA : trimB;
+    const t = pct * vid.duration;
+    const minGap = 1 / fps;
+
+    if (edge === 'start') {
+        trim.start = Math.min(t, trim.end - minGap);
+        trim.start = Math.max(0, trim.start);
+    } else {
+        trim.end = Math.max(t, trim.start + minGap);
+        trim.end = Math.min(vid.duration, trim.end);
+    }
+    recalcRange();
+}
+
+function trimDragEnd() {
+    if (!trimDrag) return;
+    const hId = 'handle' + trimDrag.which + (trimDrag.edge === 'start' ? 'S' : 'E');
+    $(hId).classList.remove('dragging');
+    trimDrag = null;
+    seekTo(frame);
+}
+
+document.addEventListener('mousemove', e => trimDragMove(e.clientX));
+document.addEventListener('mouseup', trimDragEnd);
+document.addEventListener('touchmove', e => { if (trimDrag) trimDragMove(e.touches[0].clientX); });
+document.addEventListener('touchend', trimDragEnd);
+
+// Reset button
 $('btnTrimReset').addEventListener('click', () => {
     if (!vidA || !vidB) return;
-    $('trimAS').value = '0.000'; $('trimAE').value = vidA.duration.toFixed(3);
-    $('trimBS').value = '0.000'; $('trimBE').value = vidB.duration.toFixed(3);
+    trimA.start = 0; trimA.end = vidA.duration;
+    trimB.start = 0; trimB.end = vidB.duration;
     onTrimChange();
 });
 
@@ -715,6 +873,7 @@ function updateInfo() {
     const absA = (trimA.start + tRel).toFixed(3);
     const absB = (trimB.start + tRel).toFixed(3);
     frameInfo.textContent = `Frame ${frame}/${total - 1}  (${m}:${s})  A:${absA}s B:${absB}s`;
+    updatePlayhead();
 }
 
 // ======================== Rendering ========================
@@ -847,15 +1006,19 @@ function togglePlay() {
 }
 
 function startPlay() {
+    // If at the end, wrap to beginning
+    if (frame >= total - 1) frame = 0;
     playing = true;
     $('btnPlay').innerHTML = '&#9646;&#9646; 暫停';
     vidA.currentTime = trimA.start + frame / fps;
     vidB.currentTime = trimB.start + frame / fps;
-    vidA.play(); vidB.play();
+    vidA.play().catch(() => {});
+    vidB.play().catch(() => {});
     playLoop();
 }
 
 function stopPlay() {
+    if (!playing) return;
     playing = false;
     $('btnPlay').innerHTML = '&#9654; 播放';
     vidA.pause(); vidB.pause();

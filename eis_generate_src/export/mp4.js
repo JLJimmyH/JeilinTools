@@ -113,6 +113,12 @@ APP.exports = APP.exports || {};
     progress(0, "編碼中... 0/" + frameCount + " 幀 (" + w + "x" + h + ")");
 
     // --- Encode loop ---
+    // For large resolutions (4K), keep the queue very shallow to avoid
+    // overwhelming the encoder and to keep memory under control.
+    var maxQueue = (w * h > 4000000) ? 2 : 5;
+    var keyInterval = Math.max(1, Math.round(fps));
+    var BACKPRESSURE_TIMEOUT = 30000; // 30s per frame max wait
+
     try {
       for (var f = 0; f < frameCount; f++) {
         if (_cancelled) break;
@@ -124,20 +130,34 @@ APP.exports = APP.exports || {};
           timestamp: Math.round(f * 1000000 / fps),
           duration: Math.round(1000000 / fps),
         });
-        var keyFrame = f % Math.round(fps) === 0;
+        var keyFrame = f % keyInterval === 0;
         encoder.encode(vf, { keyFrame: keyFrame });
         vf.close();
 
-        // Backpressure
-        while (encoder.encodeQueueSize > 10) {
-          await new Promise(function (r) { setTimeout(r, 5); });
+        // Backpressure — wait for encoder to drain, with timeout
+        var bpStart = performance.now();
+        while (encoder.encodeQueueSize > maxQueue) {
+          if (_cancelled) break;
+          if (encoderError) throw encoderError;
+          if (performance.now() - bpStart > BACKPRESSURE_TIMEOUT) {
+            throw new Error(
+              "編碼器在第 " + f + " 幀卡住超過 30 秒。\n" +
+              "4K 編碼可能超出瀏覽器硬體編碼能力，請嘗試降低解析度。"
+            );
+          }
+          await new Promise(function (r) { setTimeout(r, 10); });
+        }
+
+        // Periodic flush to prevent internal buffer buildup on large frames
+        if (f > 0 && f % (keyInterval * 2) === 0) {
+          await encoder.flush();
         }
 
         var pct = (f + 1) / frameCount * 100;
         progress(pct, "編碼中... " + (f + 1) + "/" + frameCount + " 幀 (" + pct.toFixed(1) + "%)");
 
-        // Yield to UI
-        if (f % 3 === 0) await new Promise(function (r) { setTimeout(r, 0); });
+        // Yield to UI every frame
+        await new Promise(function (r) { setTimeout(r, 0); });
       }
 
       if (_cancelled) {
