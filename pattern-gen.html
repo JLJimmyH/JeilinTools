@@ -251,6 +251,9 @@ body::after {
       <button class="preset-btn" data-type="motionGrid" data-motion>
         <span class="preset-icon">⊞→</span>Motion Grid
       </button>
+      <button class="preset-btn" data-type="imageScroll" data-motion>
+        <span class="preset-icon">🖼↔</span>Image Scroll
+      </button>
     </div>
   </div>
 
@@ -435,6 +438,13 @@ const EXTRA_PARAMS = {
     { id: 'mgSpeed', label: '速度 (px/frame)', type: 'number', value: 2, min: 1, max: 20 },
     { id: 'mgSize', label: '格子大小 (px)', type: 'number', value: 60, min: 10, max: 200 },
   ],
+  imageScroll: [
+    { id: 'isSpeed', label: '速度 (px/frame)', type: 'number', value: 3, min: 1, max: 60 },
+    { id: 'isDir', label: '方向', type: 'select', options: [
+      { value: 'h', text: '水平 ↔' }, { value: 'v', text: '垂直 ↕' },
+    ]},
+    { id: 'isImage', label: '上傳圖片', type: 'file', accept: 'image/*' },
+  ],
 };
 
 function buildExtraParams() {
@@ -462,6 +472,19 @@ function buildExtraParams() {
         sel.appendChild(opt);
       });
       grp.appendChild(sel);
+    } else if (d.type === 'file') {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.id = d.id;
+      if (d.accept) inp.accept = d.accept;
+      inp.style.cssText = 'font-size:0.7rem;color:var(--text);max-width:180px;';
+      inp.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const img = new Image();
+        img.onload = () => { scrollSourceImage = img; };
+        img.src = URL.createObjectURL(file);
+      });
+      grp.appendChild(inp);
     }
     container.appendChild(grp);
   });
@@ -856,7 +879,7 @@ function genDeadPixel(w, h) {
 // ─── Animation Engine ──────────────────────────────────
 let animId = null;
 let animState = {};
-const MOTION_TYPES = new Set(['movingBar','scrollStripes','bouncingBox','rollingShutter','flashAlternate','motionGrid']);
+const MOTION_TYPES = new Set(['movingBar','scrollStripes','bouncingBox','rollingShutter','flashAlternate','motionGrid','imageScroll']);
 
 function isMotion(type) { return MOTION_TYPES.has(type); }
 
@@ -1110,6 +1133,76 @@ function hsl2rgb(h, s, l) {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
 
+// ─── Image Scroll Pattern ─────────────────────────────
+let scrollSourceImage = null; // will be set by upload or default
+
+function loadDefaultNatureImage() {
+  const img = new Image();
+  img.src = 'nature_default.jpg';
+  img.onload = () => { if (!scrollSourceImage) scrollSourceImage = img; };
+}
+loadDefaultNatureImage();
+
+function genImageScroll(w, h, st) {
+  const speed = param('isSpeed', 3);
+  const dir = param('isDir', 'h');
+
+  const img = scrollSourceImage;
+  if (!img || !img.complete || !img.naturalWidth) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#888';
+    ctx.font = '20px Courier New';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('圖片載入中...', w / 2, h / 2);
+    return;
+  }
+
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  let drawW, drawH;
+
+  if (dir === 'h') {
+    // Fill canvas height, let width extend for horizontal scrolling
+    drawH = h;
+    drawW = Math.round(iw * (h / ih));
+    // If image is too narrow to scroll, scale it up to at least 2x canvas width
+    if (drawW <= w) {
+      drawW = w * 2;
+      drawH = Math.round(ih * (drawW / iw));
+    }
+  } else {
+    // Fill canvas width, let height extend for vertical scrolling
+    drawW = w;
+    drawH = Math.round(ih * (w / iw));
+    // If image is too short to scroll, scale it up to at least 2x canvas height
+    if (drawH <= h) {
+      drawH = h * 2;
+      drawW = Math.round(iw * (drawH / ih));
+    }
+  }
+
+  // Bounce: ping-pong offset
+  const maxOffset = dir === 'h' ? drawW - w : drawH - h;
+
+  // Initialize bounce state
+  if (st.imgPos === undefined) { st.imgPos = 0; st.imgDir = 1; }
+
+  st.imgPos += speed * st.imgDir;
+  if (st.imgPos >= maxOffset) { st.imgPos = maxOffset; st.imgDir = -1; }
+  if (st.imgPos <= 0) { st.imgPos = 0; st.imgDir = 1; }
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  if (dir === 'h') {
+    ctx.drawImage(img, -st.imgPos, (h - drawH) / 2, drawW, drawH);
+  } else {
+    ctx.drawImage(img, (w - drawW) / 2, -st.imgPos, drawW, drawH);
+  }
+
+  drawMotionHUD(w, h, st, `${speed} px/f · ${dir === 'h' ? '水平' : '垂直'} · ${iw}×${ih}`);
+}
+
 // ─── Generator Dispatch ────────────────────────────────
 const generators = {
   colorBars: genColorBars,
@@ -1130,6 +1223,7 @@ const generators = {
   rollingShutter: genRollingShutter,
   flashAlternate: genFlashAlternate,
   motionGrid: genMotionGrid,
+  imageScroll: genImageScroll,
 };
 
 function generate() {
