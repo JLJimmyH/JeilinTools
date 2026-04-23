@@ -119,6 +119,23 @@
   const mp4BarFill = document.getElementById("mp4BarFill");
   const mp4Status = document.getElementById("mp4Status");
 
+  // Build a descriptive filename from the active shake + key params so the
+  // saved pair is self-describing (e.g. eis_fps60_d3s_x8A2Hz_y5A1.5Hz_z0A0Hz).
+  function buildOutputBaseName(s) {
+    function n(v) {
+      if (v == null || !isFinite(v)) return "0";
+      return (Math.round(v * 100) / 100).toString().replace(".", "p");
+    }
+    const parts = ["eis"];
+    parts.push("fps" + n(s.fps));
+    parts.push("d" + n(s.duration) + "s");
+    parts.push("x" + n(s.sinAx) + "A" + n(s.sinFx) + "Hz");
+    parts.push("y" + n(s.sinAy) + "A" + n(s.sinFy) + "Hz");
+    parts.push("z" + n(s.sinAz) + "A" + n(s.sinFz) + "Hz");
+    parts.push("g" + n(s.gyroRate));
+    return parts.join("_");
+  }
+
   document.getElementById("btnCancelMp4").addEventListener("click", function () {
     cancelMp4();
   });
@@ -128,34 +145,29 @@
     playing = false;
 
     const fps2 = state.fps;
-    const suggestedMp4Name = "eis_output_" + state.width + "x" + state.height + "_" + fps2 + "fps.mp4";
+    const baseName = buildOutputBaseName(state);
+    const mp4FileName = baseName + ".mp4";
+    const gcsvFileName = baseName + ".gcsv";
 
-    // Ask for both file locations up-front, while user activation is still valid.
-    // If File System Access API isn't available, fall back to the download-link path.
-    const hasFsApi = typeof window.showSaveFilePicker === "function";
-    let mp4Handle = null, gcsvHandle = null;
-    if (hasFsApi) {
+    // Let user pick a directory; both files are written there with the
+    // auto-generated base name. Fallback to download links if API missing.
+    const hasDirApi = typeof window.showDirectoryPicker === "function";
+    let dirHandle = null, mp4Handle = null, gcsvHandle = null;
+    if (hasDirApi) {
       try {
-        mp4Handle = await window.showSaveFilePicker({
-          suggestedName: suggestedMp4Name,
-          types: [{ description: "MP4 video", accept: { "video/mp4": [".mp4"] } }],
-        });
+        dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
       } catch (e) {
         if (e && e.name === "AbortError") return; // user cancelled
-        console.warn("MP4 file picker unavailable, falling back to download:", e);
+        console.warn("Directory picker unavailable, falling back to download:", e);
       }
-
-      if (mp4Handle) {
-        const baseName = mp4Handle.name.replace(/\.[^.]+$/, "");
+      if (dirHandle) {
         try {
-          gcsvHandle = await window.showSaveFilePicker({
-            suggestedName: baseName + ".gcsv",
-            startIn: mp4Handle,
-            types: [{ description: "Gyroflow CSV", accept: { "text/csv": [".gcsv", ".csv"] } }],
-          });
+          mp4Handle = await dirHandle.getFileHandle(mp4FileName, { create: true });
+          gcsvHandle = await dirHandle.getFileHandle(gcsvFileName, { create: true });
         } catch (e) {
-          if (e && e.name === "AbortError") return; // user cancelled after picking mp4
-          console.warn("gcsv file picker unavailable, falling back to download:", e);
+          console.warn("Failed to create output handles, falling back to download:", e);
+          mp4Handle = null;
+          gcsvHandle = null;
         }
       }
     }
@@ -184,7 +196,7 @@
           mp4BarFill.style.width = pct + "%";
           mp4Status.textContent = msg;
         },
-        fileName: suggestedMp4Name,
+        fileName: mp4FileName,
         fileHandle: mp4Handle,
       });
 
@@ -197,11 +209,8 @@
         const gcsvBlob = new Blob([gcsvText], { type: "text/csv" });
         const gcsvUrl = URL.createObjectURL(gcsvBlob);
         const gcsvA = document.createElement("a");
-        const baseName = mp4Handle
-          ? mp4Handle.name.replace(/\.[^.]+$/, "")
-          : suggestedMp4Name.replace(/\.mp4$/i, "");
         gcsvA.href = gcsvUrl;
-        gcsvA.download = baseName + ".gcsv";
+        gcsvA.download = gcsvFileName;
         gcsvA.click();
         setTimeout(function () { URL.revokeObjectURL(gcsvUrl); }, 3000);
       }
