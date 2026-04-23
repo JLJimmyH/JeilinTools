@@ -16,8 +16,8 @@ APP.exports = APP.exports || {};
    *   fps           – frames per second
    *   renderFrame   – async function(frameIndex) that draws onto `canvas`
    *   progress      – function(pct, msg) called with 0-100 and status text
-   *   gcsvBlob      – optional Blob of gcsv data to bundle (downloaded separately)
-   *   fileName      – base name for the mp4 file
+   *   fileName      – base name for the mp4 file (fallback download only)
+   *   fileHandle    – optional FileSystemFileHandle; writes directly when given
    *
    * Returns: Promise<void>  (rejects on error / cancel)
    */
@@ -28,6 +28,7 @@ APP.exports = APP.exports || {};
     var renderFrame = opts.renderFrame;
     var progress = opts.progress || function () {};
     var fileName = opts.fileName || "output.mp4";
+    var fileHandle = opts.fileHandle || null;
 
     _cancelled = false;
 
@@ -170,14 +171,20 @@ APP.exports = APP.exports || {};
       encoder.close();
       muxer.finalize();
 
-      // --- Download MP4 ---
+      // --- Write MP4 ---
       var blob = new Blob([target.buffer], { type: "video/mp4" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      if (fileHandle) {
+        var writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      }
 
       progress(100, "匯出完成！");
 

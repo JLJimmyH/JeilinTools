@@ -126,6 +126,40 @@
   document.getElementById("btnExportMp4").addEventListener("click", async function () {
     const btn = document.getElementById("btnExportMp4");
     playing = false;
+
+    const fps2 = state.fps;
+    const suggestedMp4Name = "eis_output_" + state.width + "x" + state.height + "_" + fps2 + "fps.mp4";
+
+    // Ask for both file locations up-front, while user activation is still valid.
+    // If File System Access API isn't available, fall back to the download-link path.
+    const hasFsApi = typeof window.showSaveFilePicker === "function";
+    let mp4Handle = null, gcsvHandle = null;
+    if (hasFsApi) {
+      try {
+        mp4Handle = await window.showSaveFilePicker({
+          suggestedName: suggestedMp4Name,
+          types: [{ description: "MP4 video", accept: { "video/mp4": [".mp4"] } }],
+        });
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // user cancelled
+        console.warn("MP4 file picker unavailable, falling back to download:", e);
+      }
+
+      if (mp4Handle) {
+        const baseName = mp4Handle.name.replace(/\.[^.]+$/, "");
+        try {
+          gcsvHandle = await window.showSaveFilePicker({
+            suggestedName: baseName + ".gcsv",
+            startIn: mp4Handle,
+            types: [{ description: "Gyroflow CSV", accept: { "text/csv": [".gcsv", ".csv"] } }],
+          });
+        } catch (e) {
+          if (e && e.name === "AbortError") return; // user cancelled after picking mp4
+          console.warn("gcsv file picker unavailable, falling back to download:", e);
+        }
+      }
+    }
+
     btn.disabled = true;
     mp4Overlay.classList.add("visible");
     mp4BarFill.style.width = "0%";
@@ -133,11 +167,9 @@
 
     try {
       if (sceneDirty) refreshScene();
-      const fps2 = state.fps;
       const N = Math.round(state.duration * fps2);
       const Rfn = buildTrajectory(state);
 
-      // Build gcsv and trigger its download alongside the mp4
       const gcsvText = buildGcsv(Rfn, state);
 
       await exportMp4({
@@ -152,19 +184,29 @@
           mp4BarFill.style.width = pct + "%";
           mp4Status.textContent = msg;
         },
-        fileName: "eis_output_" + state.width + "x" + state.height + "_" + fps2 + "fps.mp4",
+        fileName: suggestedMp4Name,
+        fileHandle: mp4Handle,
       });
 
-      // Also download gcsv
-      const gcsvBlob = new Blob([gcsvText], { type: "text/csv" });
-      const gcsvUrl = URL.createObjectURL(gcsvBlob);
-      const gcsvA = document.createElement("a");
-      gcsvA.href = gcsvUrl;
-      gcsvA.download = "output.gcsv";
-      gcsvA.click();
-      setTimeout(function () { URL.revokeObjectURL(gcsvUrl); }, 3000);
+      // --- Write gcsv ---
+      if (gcsvHandle) {
+        const writable = await gcsvHandle.createWritable();
+        await writable.write(gcsvText);
+        await writable.close();
+      } else {
+        const gcsvBlob = new Blob([gcsvText], { type: "text/csv" });
+        const gcsvUrl = URL.createObjectURL(gcsvBlob);
+        const gcsvA = document.createElement("a");
+        const baseName = mp4Handle
+          ? mp4Handle.name.replace(/\.[^.]+$/, "")
+          : suggestedMp4Name.replace(/\.mp4$/i, "");
+        gcsvA.href = gcsvUrl;
+        gcsvA.download = baseName + ".gcsv";
+        gcsvA.click();
+        setTimeout(function () { URL.revokeObjectURL(gcsvUrl); }, 3000);
+      }
 
-      mp4Status.textContent = "完成！MP4 + gcsv 已下載";
+      mp4Status.textContent = "完成！MP4 + gcsv 已輸出";
       await new Promise(function (r) { setTimeout(r, 1200); });
     } catch (e) {
       if (e.message !== "已取消匯出") {
