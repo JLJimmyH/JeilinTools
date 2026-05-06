@@ -208,6 +208,27 @@ body::after {
 #btnExportMp4 { border-color: #ffaa00; color: #ffaa00; }
 #btnExportMp4:hover { background: #ffaa00; color: var(--bg); box-shadow: 0 0 10px #ffaa00, 0 0 20px rgba(255,170,0,0.5); }
 
+/* Drop overlay */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 255, 136, 0.10);
+  border: 4px dashed var(--accent);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.drop-overlay.visible { display: flex; }
+.drop-overlay-text {
+  font-family: 'Courier New', monospace;
+  font-size: 1.4rem;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent);
+  letter-spacing: 0.15em;
+}
+
 /* Export overlay */
 .export-overlay {
   display: none;
@@ -595,6 +616,10 @@ body::after {
     <div class="status" id="mp4Status">準備中...</div>
     <button id="btnCancelMp4">取消</button>
   </div>
+</div>
+
+<div id="dropOverlay" class="drop-overlay">
+  <div class="drop-overlay-text">拖放圖片以新增背景</div>
 </div>
 
 <!-- Dependency order matters: each script registers itself onto window.APP -->

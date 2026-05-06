@@ -297,6 +297,63 @@
     renderAt(0);
   });
 
+  // ---------- Drag & Drop ----------
+  const dropOverlay = document.getElementById("dropOverlay");
+  let dragDepth = 0; // counter to handle nested dragenter/leave
+
+  function hasFiles(e) {
+    if (!e.dataTransfer) return false;
+    const types = e.dataTransfer.types;
+    if (!types) return false;
+    for (let i = 0; i < types.length; i++) {
+      if (types[i] === "Files") return true;
+    }
+    return false;
+  }
+
+  document.addEventListener("dragenter", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth += 1;
+    dropOverlay.classList.add("visible");
+  });
+  document.addEventListener("dragover", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  document.addEventListener("dragleave", function (e) {
+    if (!hasFiles(e)) return;
+    dragDepth -= 1;
+    if (dragDepth <= 0) {
+      dragDepth = 0;
+      dropOverlay.classList.remove("visible");
+    }
+  });
+  document.addEventListener("drop", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    dropOverlay.classList.remove("visible");
+    const files = Array.from(e.dataTransfer.files).filter(function (f) {
+      return f.type && f.type.startsWith("image/");
+    });
+    if (files.length === 0) return;
+    let lastIdPromise = Promise.resolve(null);
+    files.forEach(function (f) {
+      lastIdPromise = APP.scene.imageRegistry.add(f).then(function (id) {
+        renderThumbs();
+        return id;
+      }).catch(function (err) {
+        console.warn("圖片載入失敗:", err);
+        return null;
+      });
+    });
+    lastIdPromise.then(function (lastId) {
+      if (lastId) selectImage(lastId);
+    });
+  });
+
   // ---------- Init ----------
   reallocCanvases();
   renderAt(0);
