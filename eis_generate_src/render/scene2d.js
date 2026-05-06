@@ -26,6 +26,7 @@ APP.render = APP.render || {};
     ctx.translate(offX, offY);
     APP.scene.drawBall(ctx, outW, outH, state);
     APP.scene.drawMarkers(ctx, outW, outH, state);
+    APP.scene.drawRuler(ctx, outW, outH, state);
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, outW, outH);

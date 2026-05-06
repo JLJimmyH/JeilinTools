@@ -533,6 +533,9 @@ body::after {
     <section>
       <h2>特徵物</h2>
       <label>顯示方向箭頭 + 角標 <input type="checkbox" id="markersShow"></label>
+      <label>顯示 pixel 刻度尺 <input type="checkbox" id="rulerShow" checked></label>
+      <label>主刻度間距 (px) <input type="number" id="rulerMajor" value="100" min="10"></label>
+      <label>次刻度間距 (px) <input type="number" id="rulerMinor" value="20" min="2"></label>
     </section>
 
     <section>
@@ -570,6 +573,7 @@ body::after {
 <script src="eis_generate_src/scene/background.js"></script>
 <script src="eis_generate_src/scene/ball.js"></script>
 <script src="eis_generate_src/scene/markers.js"></script>
+<script src="eis_generate_src/scene/ruler.js"></script>
 <script src="eis_generate_src/render/scene2d.js"></script>
 <script src="eis_generate_src/render/warpGL.js"></script>
 <script src="eis_generate_src/export/gcsv.js"></script>

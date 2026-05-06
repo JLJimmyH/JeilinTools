@@ -7,9 +7,10 @@ APP.ui = (function () {
     "sinAx", "sinFx", "sinAy", "sinFy", "sinAz", "sinFz",
     "bgCheckerSize",
     "ballR", "ballCx", "ballCy",
+    "rulerMajor", "rulerMinor",
   ];
   const STR_FIELDS = ["bgType", "bgColor1", "bgColor2", "ballColor"];
-  const BOOL_FIELDS = ["ballShow", "markersShow"];
+  const BOOL_FIELDS = ["ballShow", "markersShow", "rulerShow"];
 
   function readState() {
     const s = {};
