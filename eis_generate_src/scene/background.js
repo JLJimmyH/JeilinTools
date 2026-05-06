@@ -1,6 +1,6 @@
 window.APP = window.APP || {};
 APP.scene = APP.scene || {};
-APP.scene.drawBackground = function drawBackground(ctx, w, h, state, loadedImage) {
+APP.scene.drawBackground = function drawBackground(ctx, w, h, state, activeImage) {
   switch (state.bgType) {
     case "solid":
       ctx.fillStyle = state.bgColor1;
@@ -15,8 +15,8 @@ APP.scene.drawBackground = function drawBackground(ctx, w, h, state, loadedImage
       break;
     }
     case "image":
-      if (loadedImage) {
-        ctx.drawImage(loadedImage, 0, 0, w, h);
+      if (activeImage) {
+        ctx.drawImage(activeImage, 0, 0, w, h);
       } else {
         ctx.fillStyle = "#333";
         ctx.fillRect(0, 0, w, h);

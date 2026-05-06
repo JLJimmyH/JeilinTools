@@ -15,11 +15,11 @@ APP.render = APP.render || {};
     return canvas;
   };
 
-  APP.render.renderScene = function renderScene(sceneCanvas, outW, outH, state, loadedImage) {
+  APP.render.renderScene = function renderScene(sceneCanvas, outW, outH, state, activeImage) {
     const ctx = sceneCanvas.getContext("2d");
     const W = sceneCanvas.width;
     const H = sceneCanvas.height;
-    APP.scene.drawBackground(ctx, W, H, state, loadedImage);
+    APP.scene.drawBackground(ctx, W, H, state, activeImage);
     const offX = (W - outW) / 2;
     const offY = (H - outH) / 2;
     ctx.save();
