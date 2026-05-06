@@ -373,14 +373,26 @@
   (function loadDefaultImage() {
     const img = document.getElementById("natureDefaultImg");
     if (!img) return;
-    APP.scene.imageRegistry.add(img, "nature_default.jpg").then(function (id) {
-      renderThumbs();
-      // Only auto-select if user hasn't touched the bg yet
-      if (state.bgType === "checker" && !state.activeImageId) {
-        selectImage(id);
-      }
-    }).catch(function (err) {
-      console.warn("nature_default.jpg 載入失敗:", err);
-    });
+    function attempt() {
+      APP.scene.imageRegistry.add(img, "nature_default.jpg").then(function (id) {
+        renderThumbs();
+        // Only auto-select if user hasn't touched the bg yet
+        if (state.bgType === "checker" && !state.activeImageId) {
+          selectImage(id);
+        }
+      }).catch(function (err) {
+        console.warn("nature_default.jpg 載入失敗:", err);
+      });
+    }
+    if (img.complete && img.naturalWidth > 0) {
+      attempt();
+    } else if (img.complete) {
+      console.warn("nature_default.jpg 載入失敗: image element reports not loaded");
+    } else {
+      img.addEventListener("load", attempt, { once: true });
+      img.addEventListener("error", function () {
+        console.warn("nature_default.jpg 載入失敗: image error event");
+      }, { once: true });
+    }
   })();
 })();
