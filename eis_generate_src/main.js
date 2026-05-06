@@ -182,6 +182,7 @@
   });
 
   // ---------- Export MP4 ----------
+  let exportInProgress = false;
   const mp4Overlay = document.getElementById("exportOverlay");
   const mp4BarFill = document.getElementById("mp4BarFill");
   const mp4Status = document.getElementById("mp4Status");
@@ -239,6 +240,7 @@
       }
     }
 
+    exportInProgress = true;
     btn.disabled = true;
     mp4Overlay.classList.add("visible");
     mp4BarFill.style.width = "0%";
@@ -292,6 +294,7 @@
       mp4Status.textContent = "";
     }
 
+    exportInProgress = false;
     mp4Overlay.classList.remove("visible");
     btn.disabled = false;
     renderAt(0);
@@ -332,6 +335,12 @@
   });
   document.addEventListener("drop", function (e) {
     if (!hasFiles(e)) return;
+    if (exportInProgress) {
+      e.preventDefault();
+      dragDepth = 0;
+      dropOverlay.classList.remove("visible");
+      return;
+    }
     e.preventDefault();
     dragDepth = 0;
     dropOverlay.classList.remove("visible");
