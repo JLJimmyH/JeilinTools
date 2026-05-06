@@ -385,6 +385,37 @@ body::after {
   background-image: none;
   border-style: dashed;
 }
+.bg-preset.bg-preset--thumb {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+.bg-preset.bg-preset--thumb .thumb-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  border: 1px solid var(--accent);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  display: none;
+  cursor: pointer;
+  padding: 0;
+}
+.bg-preset.bg-preset--thumb:hover .thumb-remove {
+  display: block;
+}
 
 /* Axis waveform groups */
 .axis-group {

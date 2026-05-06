@@ -114,6 +114,61 @@
     const sel = document.getElementById("bgType");
     sel.value = "image";
     sel.dispatchEvent(new Event("input", { bubbles: true }));
+    renderThumbs();
+  }
+
+  // Re-renders the thumbnail buttons inside .bg-presets, just before the "+" preset.
+  // Also marks the current activeImageId thumb as .active.
+  function renderThumbs() {
+    const presets = document.querySelector(".bg-presets");
+    if (!presets) return;
+    // Remove existing thumb buttons
+    presets.querySelectorAll(".bg-preset--thumb").forEach(function (el) { el.remove(); });
+    const plusBtn = presets.querySelector(".bg-preset--image");
+    const items = APP.scene.imageRegistry.list();
+    items.forEach(function (it) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "bg-preset bg-preset--thumb";
+      btn.dataset.bg = "image";
+      btn.dataset.imageId = it.id;
+      btn.title = it.name;
+      btn.style.backgroundImage = "url(" + it.thumbDataUrl + ")";
+      if (state.activeImageId === it.id && state.bgType === "image") {
+        btn.classList.add("active");
+      }
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "thumb-remove";
+      x.textContent = "×";
+      x.title = "刪除";
+      x.addEventListener("click", function (e) {
+        e.stopPropagation();
+        removeImage(it.id);
+      });
+      btn.appendChild(x);
+      btn.addEventListener("click", function () {
+        selectImage(it.id);
+      });
+      presets.insertBefore(btn, plusBtn);
+    });
+  }
+
+  function removeImage(id) {
+    const wasActive = state.activeImageId === id;
+    APP.scene.imageRegistry.remove(id);
+    if (wasActive) {
+      const remaining = APP.scene.imageRegistry.list();
+      if (remaining.length > 0) {
+        selectImage(remaining[0].id);
+      } else {
+        document.getElementById("activeImageId").value = "";
+        const sel = document.getElementById("bgType");
+        sel.value = "checker";
+        sel.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+    renderThumbs();
   }
 
   document.getElementById("bgImage").addEventListener("change", function (e) {
