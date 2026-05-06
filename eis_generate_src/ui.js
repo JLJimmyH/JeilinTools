@@ -9,7 +9,7 @@ APP.ui = (function () {
     "ballR", "ballCx", "ballCy",
     "rulerMajor", "rulerMinor",
   ];
-  const STR_FIELDS = ["bgType", "bgColor1", "bgColor2", "ballColor"];
+  const STR_FIELDS = ["bgType", "bgColor1", "bgColor2", "ballColor", "activeImageId"];
   const BOOL_FIELDS = ["ballShow", "markersShow", "rulerShow"];
 
   function readState() {

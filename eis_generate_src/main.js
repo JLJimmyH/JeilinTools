@@ -16,7 +16,6 @@
 
   let sceneCanvas = null;
   let sceneDirty = true;
-  let loadedImage = null;
   let state = readState();
 
   const SCENE_FIELDS = new Set([
@@ -24,6 +23,7 @@
     "bgType", "bgColor1", "bgColor2", "bgCheckerSize",
     "ballShow", "ballR", "ballCx", "ballCy", "ballColor",
     "markersShow",
+    "activeImageId",
   ]);
 
   function reallocCanvases() {
@@ -38,7 +38,12 @@
   }
 
   function refreshScene() {
-    renderScene(sceneCanvas, state.width, state.height, state, loadedImage);
+    let activeImage = null;
+    if (state.bgType === "image" && state.activeImageId) {
+      const entry = APP.scene.imageRegistry.get(state.activeImageId);
+      if (entry) activeImage = entry.image;
+    }
+    renderScene(sceneCanvas, state.width, state.height, state, activeImage);
     warpGL.uploadSource(sceneCanvas);
     sceneDirty = false;
   }
@@ -102,16 +107,23 @@
     if (!playing) renderAt(0);
   });
 
+  // Sets the active image, switches bgType to "image", and triggers re-render.
+  // Writes through the hidden input + select so the UI's onChange path runs.
+  function selectImage(id) {
+    document.getElementById("activeImageId").value = id;
+    const sel = document.getElementById("bgType");
+    sel.value = "image";
+    sel.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   document.getElementById("bgImage").addEventListener("change", function (e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const img = new Image();
-    img.onload = function () {
-      loadedImage = img;
-      sceneDirty = true;
-      if (!playing) renderAt(0);
-    };
-    img.src = URL.createObjectURL(file);
+    APP.scene.imageRegistry.add(file).then(function (id) {
+      selectImage(id);
+    }).catch(function (err) {
+      console.warn("圖片載入失敗:", err);
+    });
   });
 
   // ---------- Export MP4 ----------
