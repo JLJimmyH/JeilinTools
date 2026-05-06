@@ -20,18 +20,18 @@ APP.scene.imageRegistry = (function () {
   // (from fetch+decode). Returns a Promise<id>.
   function add(source, name) {
     return new Promise(function (resolve, reject) {
-      function register(img, label) {
+      function register(img, label, url) {
         counter += 1;
         const id = "img_" + counter;
         const thumbDataUrl = makeThumb(img);
-        entries.set(id, { name: label, image: img, thumbDataUrl: thumbDataUrl });
+        entries.set(id, { name: label, image: img, thumbDataUrl: thumbDataUrl, url: url });
         resolve(id);
       }
       if (source instanceof HTMLImageElement) {
         if (source.complete && source.naturalWidth > 0) {
-          register(source, name || "image");
+          register(source, name || "image", null);
         } else {
-          source.addEventListener("load", function () { register(source, name || "image"); });
+          source.addEventListener("load", function () { register(source, name || "image", null); });
           source.addEventListener("error", function () { reject(new Error("image decode failed")); });
         }
         return;
@@ -40,8 +40,7 @@ APP.scene.imageRegistry = (function () {
       const url = URL.createObjectURL(source);
       const img = new Image();
       img.onload = function () {
-        register(img, name || (source.name || "image"));
-        // keep object URL alive — img references it until page unload
+        register(img, name || (source.name || "image"), url);
       };
       img.onerror = function () {
         URL.revokeObjectURL(url);
@@ -57,7 +56,12 @@ APP.scene.imageRegistry = (function () {
     entries.forEach(function (v, k) { out.push({ id: k, name: v.name, thumbDataUrl: v.thumbDataUrl }); });
     return out;
   }
-  function remove(id) { return entries.delete(id); }
+  function remove(id) {
+    const entry = entries.get(id);
+    if (!entry) return false;
+    if (entry.url) URL.revokeObjectURL(entry.url);
+    return entries.delete(id);
+  }
 
   return { add: add, get: get, list: list, remove: remove };
 })();
