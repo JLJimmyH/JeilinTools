@@ -368,14 +368,12 @@
   reallocCanvases();
   renderAt(0);
 
-  // Auto-load default natural scene image. Failure is non-fatal.
+  // Auto-load default natural scene image from a hidden <img> tag.
+  // Using <img> instead of fetch() so it works on file:// origins.
   (function loadDefaultImage() {
-    fetch("nature_default.jpg").then(function (res) {
-      if (!res.ok) throw new Error("status " + res.status);
-      return res.blob();
-    }).then(function (blob) {
-      return APP.scene.imageRegistry.add(blob, "nature_default.jpg");
-    }).then(function (id) {
+    const img = document.getElementById("natureDefaultImg");
+    if (!img) return;
+    APP.scene.imageRegistry.add(img, "nature_default.jpg").then(function (id) {
       renderThumbs();
       // Only auto-select if user hasn't touched the bg yet
       if (state.bgType === "checker" && !state.activeImageId) {
