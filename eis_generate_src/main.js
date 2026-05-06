@@ -357,4 +357,22 @@
   // ---------- Init ----------
   reallocCanvases();
   renderAt(0);
+
+  // Auto-load default natural scene image. Failure is non-fatal.
+  (function loadDefaultImage() {
+    fetch("nature_default.jpg").then(function (res) {
+      if (!res.ok) throw new Error("status " + res.status);
+      return res.blob();
+    }).then(function (blob) {
+      return APP.scene.imageRegistry.add(blob, "nature_default.jpg");
+    }).then(function (id) {
+      renderThumbs();
+      // Only auto-select if user hasn't touched the bg yet
+      if (state.bgType === "checker" && !state.activeImageId) {
+        selectImage(id);
+      }
+    }).catch(function (err) {
+      console.warn("nature_default.jpg 載入失敗:", err);
+    });
+  })();
 })();
