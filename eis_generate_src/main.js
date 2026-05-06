@@ -104,6 +104,7 @@
         if (prev[k] !== state[k]) { sceneDirty = true; break; }
       }
     }
+    if (prev.bgType !== state.bgType) renderThumbs();
     if (!playing) renderAt(0);
   });
 
@@ -292,12 +293,12 @@
         alert("MP4 匯出失敗：\n" + e.message);
       }
       mp4Status.textContent = "";
+    } finally {
+      exportInProgress = false;
+      mp4Overlay.classList.remove("visible");
+      btn.disabled = false;
+      renderAt(0);
     }
-
-    exportInProgress = false;
-    mp4Overlay.classList.remove("visible");
-    btn.disabled = false;
-    renderAt(0);
   });
 
   // ---------- Drag & Drop ----------
