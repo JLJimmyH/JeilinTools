@@ -219,8 +219,11 @@
     const gcsvFileName = baseName + ".gcsv";
 
     // Let user pick a directory; both files are written there with the
-    // auto-generated base name. Fallback to download links if API missing.
-    const hasDirApi = typeof window.showDirectoryPicker === "function";
+    // auto-generated base name. Fallback to download links if API missing
+    // OR running from file:// (FileSystem API handles become invalid during
+    // long encodes on file:// origin — InvalidStateError on createWritable).
+    const hasDirApi = typeof window.showDirectoryPicker === "function"
+      && location.protocol !== "file:";
     let dirHandle = null, mp4Handle = null, gcsvHandle = null;
     if (hasDirApi) {
       try {
