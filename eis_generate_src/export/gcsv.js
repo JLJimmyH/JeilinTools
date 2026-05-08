@@ -3,7 +3,8 @@
 // Fixed output layout — NO orientation remapping:
 //   gx = yaw-rate        (our ωy, rotation around vertical axis)
 //   gy = -pitch-rate     (our -ωx, flipped so "up" tilt is positive)
-//   gz = roll-rate       (our ωz, rotation around forward axis)
+//   gz = -roll-rate      (our -ωz, flipped to match the visible image
+//                         rotation direction after warpGL Y-axis fix)
 // Accelerometer uses the same column order with the same pitch sign flip.
 // The file writes `orientation,xyz` literally — any axis/sign adjustment is
 // done in Gyroflow's own orientation dropdown.
@@ -44,8 +45,8 @@ APP.exports.buildGcsv = (function () {
       const neg_g = [-g_world[0], -g_world[1], -g_world[2]];
       const a_body = mulVec(transpose(R), neg_g);
 
-      // (gx, gy, gz) = (yaw, -pitch, roll) = (ωy, -ωx, ωz)
-      const gx = w_body[1], gy = -w_body[0], gz = w_body[2];
+      // (gx, gy, gz) = (yaw, -pitch, -roll) = (ωy, -ωx, -ωz)
+      const gx = w_body[1], gy = -w_body[0], gz = -w_body[2];
       const ax = a_body[1], ay = -a_body[0], az = a_body[2];
       const tRaw = Math.round(t * 1000);
       lines.push(
