@@ -1,11 +1,14 @@
 // Session-scoped registry of background images.
-// Stores ImageBitmap (decoded with EXIF orientation applied) plus a small
-// thumbnail dataURL for the gallery UI.
+// Stores HTMLImageElement plus a small thumbnail dataURL for the gallery UI.
 // Not part of state — state only references entries by `id`.
+//
+// Why <img> instead of createImageBitmap: modern browsers' <img> display
+// path handles all formats (incl. BMP's bottom-up row order and JPEG EXIF
+// orientation) consistently. createImageBitmap was unreliable on BMP.
 window.APP = window.APP || {};
 APP.scene = APP.scene || {};
 APP.scene.imageRegistry = (function () {
-  const entries = new Map(); // id -> {name, image, thumbDataUrl}
+  const entries = new Map(); // id -> {name, image, thumbDataUrl, url}
   let counter = 0;
 
   function makeThumb(image) {
@@ -18,17 +21,36 @@ APP.scene.imageRegistry = (function () {
   }
 
   // Accepts a File, Blob, or HTMLImageElement. Returns Promise<id>.
-  // Internally decodes via createImageBitmap so EXIF orientation is honored.
   function add(source, name) {
-    const label = name || (source && source.name) || "image";
-    return createImageBitmap(source, { imageOrientation: "from-image" })
-      .then(function (bitmap) {
+    return new Promise(function (resolve, reject) {
+      function register(img, label, url) {
         counter += 1;
         const id = "img_" + counter;
-        const thumbDataUrl = makeThumb(bitmap);
-        entries.set(id, { name: label, image: bitmap, thumbDataUrl: thumbDataUrl });
-        return id;
-      });
+        const thumbDataUrl = makeThumb(img);
+        entries.set(id, { name: label, image: img, thumbDataUrl: thumbDataUrl, url: url });
+        resolve(id);
+      }
+      if (source instanceof HTMLImageElement) {
+        if (source.complete && source.naturalWidth > 0) {
+          register(source, name || "image", null);
+        } else {
+          source.addEventListener("load", function () { register(source, name || "image", null); });
+          source.addEventListener("error", function () { reject(new Error("image decode failed")); });
+        }
+        return;
+      }
+      // Treat as File / Blob
+      const url = URL.createObjectURL(source);
+      const img = new Image();
+      img.onload = function () {
+        register(img, name || (source.name || "image"), url);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error("image decode failed"));
+      };
+      img.src = url;
+    });
   }
 
   function get(id) { return entries.get(id) || null; }
@@ -40,9 +62,7 @@ APP.scene.imageRegistry = (function () {
   function remove(id) {
     const entry = entries.get(id);
     if (!entry) return false;
-    if (entry.image && typeof entry.image.close === "function") {
-      try { entry.image.close(); } catch (_) {}
-    }
+    if (entry.url) URL.revokeObjectURL(entry.url);
     return entries.delete(id);
   }
 
