@@ -92,7 +92,9 @@ APP.render.WarpGL = (function () {
   WarpGL.prototype.uploadSource = function (sourceCanvas) {
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    // No UNPACK_FLIP_Y: shader already uses (uv.x, 1.0 - uv.y) to convert
+    // between canvas y-down and OpenGL y-up. Setting UNPACK_FLIP_Y here
+    // produced a double flip — output came out vertically inverted.
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
   };
   WarpGL.prototype.draw = function (R, K, outW, outH, srcW, srcH) {
