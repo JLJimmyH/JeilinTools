@@ -253,6 +253,11 @@
   .panel-row .ctrl-select, .panel-row .ctrl-input { flex: 1; min-width: 0; }
   .panel-row .ctrl-input[type="number"] { width: 70px; flex: 0 0 70px; text-align: right; }
   .panel-body .ctrl-btn { width: 100%; margin-top: 2px; }
+  .channel-btn-group { display: flex; flex-wrap: wrap; gap: 4px; }
+  .channel-btn { flex: 1 1 auto; min-width: 38px; padding: 5px 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--fg-muted); transition: background .12s ease, color .12s ease, border-color .12s ease; }
+  .channel-btn:hover { background: var(--surface-hover); }
+  .channel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .channel-btn.active:hover { background: var(--accent-bright); }
   .format-text { font-size: 12px; color: var(--fg-muted); line-height: 1.5; word-break: break-all; }
   .info-table { width: 100%; border-collapse: collapse; }
   .info-table td { padding: 2px 0; vertical-align: top; font-size: 12px; }
@@ -605,6 +610,13 @@
         </div>
       </div>
 
+      <div class="panel-section" id="section-channel" style="display:none">
+        <div class="panel-title">通道隔離</div>
+        <div class="panel-body">
+          <div class="channel-btn-group" id="channel-btn-group"></div>
+        </div>
+      </div>
+
     </div>
     <button class="sidebar-toggle" id="sidebar-toggle" title="收合/展開面板">&#x25C0;</button>
   </aside>
@@ -805,6 +817,11 @@
   let currentFormat = null; // 'jr2' | 'argb' | 'png' | 'yuv' | 'raw'
   let fileName = '';
 
+  // 通道隔離 (單圖模式)
+  let currentChannel = 'all';      // 'all' | 'Y'|'U'|'V' | 'R'|'G'|'B'|'A'
+  let channelFamily = 'gray';      // 'yuv' | 'rgb' | 'gray' (gray → 無通道可分)
+  let channelPlaneY = null, channelPlaneU = null, channelPlaneV = null; // YUV 全解析度 plane (Uint8Array w×h)
+
   // File metadata state (shared)
   let currentFileSize = 0;
   let currentExifData = null;
@@ -877,6 +894,7 @@
     currentExifData = null;
     currentPngInfo = null;
     jr2HeaderReserved = null;
+    currentChannel = 'all'; // 新檔載入重設通道隔離
     const ext = file.name.toLowerCase();
 
     if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.bmp')) {
@@ -1184,6 +1202,8 @@
       tmpCtx.drawImage(img, 0, 0);
       const id = tmpCtx.getImageData(0, 0, argbWidth, argbHeight);
       argbImageData = new Uint8ClampedArray(id.data);
+      channelFamily = 'rgb';
+      channelPlaneY = channelPlaneU = channelPlaneV = null;
 
       const fext = fileName.split('.').pop().toUpperCase();
       infoEl.textContent = `${fileName} | ${fext} | ${argbWidth}×${argbHeight}`;
@@ -1553,6 +1573,8 @@
     const uvSigned = yuvUvSignedCheckbox.checked;
     const src = new Uint8Array(arrayBuffer);
     const rgba = new Uint8ClampedArray(w * h * 4);
+    // 通道隔離用：全解析度 Y/U/V plane (U/V 已 fixUV 為 unsigned 0..255)
+    const pY = new Uint8Array(w * h), pU = new Uint8Array(w * h), pV = new Uint8Array(w * h);
 
     // Helper: clamp YUV→RGB (BT.601)
     // uvSigned: UV 以 signed 儲存，需先 XOR 0x80 轉為 unsigned (參考 jl_tools.cpp)
@@ -1582,6 +1604,7 @@
     if (fmt === 'Y_ONLY' || fmt === 'Y_PLANE') {
       for (let i = 0; i < w * h; i++) {
         const y = getSample(src, i * bps);
+        pY[i] = y;
         rgba[i*4] = y; rgba[i*4+1] = y; rgba[i*4+2] = y; rgba[i*4+3] = 255;
       }
     } else if (fmt === 'UV_PLANE') {
@@ -1591,6 +1614,7 @@
           const off = (row * w + col) * 2 * bps;
           const u = fixUV(getSample(src, off));
           const v = fixUV(getSample(src, off + bps));
+          pU[row * w + col] = u; pV[row * w + col] = v;
           const d = u - 128, e = v - 128;
           const idx = (row * w + col) * 4;
           rgba[idx]     = Math.max(0, Math.min(255, (128 + 1.402 * e) | 0));
@@ -1613,6 +1637,7 @@
           const [r, g, b] = yuvToRgb(y, u, v);
           const idx = (row * w + col) * 4;
           rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+          pY[row * w + col] = y; pU[row * w + col] = fixUV(u); pV[row * w + col] = fixUV(v);
         }
       }
     } else if (fmt === 'I420' || fmt === 'YV12') {
@@ -1631,6 +1656,7 @@
           const [r, g, b] = yuvToRgb(y, u, v);
           const idx = (row * w + col) * 4;
           rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+          pY[row * w + col] = y; pU[row * w + col] = fixUV(u); pV[row * w + col] = fixUV(v);
         }
       }
     } else if (fmt === 'YUV422P') {
@@ -1647,6 +1673,7 @@
           const [r, g, b] = yuvToRgb(y, u, v);
           const idx = (row * w + col) * 4;
           rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+          pY[row * w + col] = y; pU[row * w + col] = fixUV(u); pV[row * w + col] = fixUV(v);
         }
       }
     } else if (fmt === 'YUYV') {
@@ -1660,11 +1687,14 @@
           const v  = getSample(src, base + 3*bps);
           const [r0, g0, b0] = yuvToRgb(y0, u, v);
           const [r1, g1, b1] = yuvToRgb(y1, u, v);
+          const fu = fixUV(u), fv = fixUV(v), pix = row * w + col;
           let idx = (row * w + col) * 4;
           rgba[idx] = r0; rgba[idx+1] = g0; rgba[idx+2] = b0; rgba[idx+3] = 255;
+          pY[pix] = y0; pU[pix] = fu; pV[pix] = fv;
           if (col + 1 < w) {
             idx += 4;
             rgba[idx] = r1; rgba[idx+1] = g1; rgba[idx+2] = b1; rgba[idx+3] = 255;
+            pY[pix+1] = y1; pU[pix+1] = fu; pV[pix+1] = fv;
           }
         }
       }
@@ -1679,11 +1709,14 @@
           const y1 = getSample(src, base + 3*bps);
           const [r0, g0, b0] = yuvToRgb(y0, u, v);
           const [r1, g1, b1] = yuvToRgb(y1, u, v);
+          const fu = fixUV(u), fv = fixUV(v), pix = row * w + col;
           let idx = (row * w + col) * 4;
           rgba[idx] = r0; rgba[idx+1] = g0; rgba[idx+2] = b0; rgba[idx+3] = 255;
+          pY[pix] = y0; pU[pix] = fu; pV[pix] = fv;
           if (col + 1 < w) {
             idx += 4;
             rgba[idx] = r1; rgba[idx+1] = g1; rgba[idx+2] = b1; rgba[idx+3] = 255;
+            pY[pix+1] = y1; pU[pix+1] = fu; pV[pix+1] = fv;
           }
         }
       }
@@ -1697,8 +1730,15 @@
         const v = getSample(src, vPlane + i * bps);
         const [r, g, b] = yuvToRgb(y, u, v);
         rgba[i*4] = r; rgba[i*4+1] = g; rgba[i*4+2] = b; rgba[i*4+3] = 255;
+        pY[i] = y; pU[i] = fixUV(u); pV[i] = fixUV(v);
       }
     }
+
+    // 設定通道隔離資料來源 (YUV 全系列)
+    channelFamily = 'yuv';
+    channelPlaneY = (fmt === 'UV_PLANE') ? null : pY;
+    channelPlaneU = (fmt === 'Y_ONLY' || fmt === 'Y_PLANE') ? null : pU;
+    channelPlaneV = (fmt === 'Y_ONLY' || fmt === 'Y_PLANE') ? null : pV;
 
     argbImageData = rgba;
     argbWidth = w; argbHeight = h;
@@ -1795,6 +1835,8 @@
 
     argbImageData = rgba;
     argbWidth = w; argbHeight = h;
+    channelFamily = (fmt === 'JR2') ? 'gray' : 'rgb';
+    channelPlaneY = channelPlaneU = channelPlaneV = null;
     infoEl.textContent = `${fileName} | RAW ${fmt} | ${w}×${h} | 來源: ${source}`;
     renderARGB();
   }
@@ -1852,6 +1894,8 @@
       infoEl.textContent = `${fileName} | ${fmt} | ${argbWidth}×${argbHeight} | 來源: ${source}`;
     }
 
+    channelFamily = 'rgb';
+    channelPlaneY = channelPlaneU = channelPlaneV = null;
     renderARGB();
   }
 
@@ -1861,6 +1905,14 @@
     if (!argbImageData) return;
     const w = argbWidth, h = argbHeight;
     canvas.width = w; canvas.height = h;
+
+    // 通道隔離：直接畫不透明單通道影像，跳過背景混合
+    if (currentChannel !== 'all') {
+      const out = ctx.createImageData(w, h);
+      buildChannelView(out.data, w, h);
+      ctx.putImageData(out, 0, 0);
+      return;
+    }
 
     const bgStyle = bgStyleSelect.value;
     if (bgStyle === 'white') {
@@ -1890,6 +1942,80 @@
     ctx.putImageData(bgData, 0, 0);
   }
 
+  // 依 currentChannel 產生單通道上色影像 (RGBA, 不透明)
+  function buildChannelView(d, w, h) {
+    const N = w * h;
+    const ch = currentChannel;
+    const clamp = (v) => v < 0 ? 0 : (v > 255 ? 255 : v | 0);
+    for (let i = 0; i < N; i++) {
+      const o = i * 4;
+      let r = 0, g = 0, b = 0;
+      if (ch === 'R') { r = argbImageData[o]; }
+      else if (ch === 'G') { g = argbImageData[o + 1]; }
+      else if (ch === 'B') { b = argbImageData[o + 2]; }
+      else if (ch === 'A') { r = g = b = argbImageData[o + 3]; }       // alpha → 灰階
+      else if (ch === 'Y') { r = g = b = channelPlaneY ? channelPlaneY[i] : 0; }
+      else if (ch === 'U') {                                            // 中性亮度 + 只留 U 色差
+        const dd = (channelPlaneU ? channelPlaneU[i] : 128) - 128;
+        r = 128; g = clamp(128 - 0.344 * dd); b = clamp(128 + 1.772 * dd);
+      } else if (ch === 'V') {                                          // 中性亮度 + 只留 V 色差
+        const ee = (channelPlaneV ? channelPlaneV[i] : 128) - 128;
+        r = clamp(128 + 1.402 * ee); g = clamp(128 - 0.714 * ee); b = 128;
+      }
+      d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
+    }
+  }
+
+  // 依目前格式族建立通道隔離按鈕；無通道可分時隱藏面板
+  function updateChannelPanel() {
+    const section = document.getElementById('section-channel');
+    const group = document.getElementById('channel-btn-group');
+
+    let channels = [];
+    if (channelFamily === 'yuv') {
+      channels = ['all'];
+      if (channelPlaneY) channels.push('Y');
+      if (channelPlaneU) channels.push('U');
+      if (channelPlaneV) channels.push('V');
+    } else if (channelFamily === 'rgb') {
+      channels = ['all', 'R', 'G', 'B'];
+      let hasAlpha = false;
+      if (argbImageData) {
+        for (let i = 3; i < argbImageData.length; i += 4) { if (argbImageData[i] < 255) { hasAlpha = true; break; } }
+      }
+      if (hasAlpha) channels.push('A');
+    }
+
+    // gray 或僅有「全部」→ 隱藏、強制回 all
+    if (channels.length <= 1) {
+      section.style.display = 'none';
+      if (currentChannel !== 'all') { currentChannel = 'all'; renderARGB(); }
+      return;
+    }
+    section.style.display = '';
+
+    // 目前通道在新格式不存在 → 重設並重畫
+    const prev = currentChannel;
+    if (!channels.includes(currentChannel)) currentChannel = 'all';
+
+    const LABEL = { all: '全部', Y: 'Y', U: 'U', V: 'V', R: 'R', G: 'G', B: 'B', A: 'A' };
+    group.innerHTML = '';
+    channels.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'channel-btn' + (c === currentChannel ? ' active' : '');
+      btn.textContent = LABEL[c];
+      btn.dataset.channel = c;
+      btn.addEventListener('click', () => {
+        currentChannel = c;
+        group.querySelectorAll('.channel-btn').forEach(b => b.classList.toggle('active', b.dataset.channel === c));
+        renderARGB();
+      });
+      group.appendChild(btn);
+    });
+
+    if (prev !== currentChannel) renderARGB();
+  }
+
   // ══════════════════════════════════════════════════════════════
   //  UI CONTROL
   // ══════════════════════════════════════════════════════════════
@@ -1904,6 +2030,8 @@
     document.getElementById('section-jr2').style.display = isJR2 ? '' : 'none';
     document.getElementById('section-yuv').style.display = isYUV ? '' : 'none';
     document.getElementById('section-raw').style.display = isRAW ? '' : 'none';
+
+    updateChannelPanel();
 
     // Show resolution inputs for ARGB without JL header, YUV, and RAW
     const isJL = isARGB && argbResult && argbResult.source === 'header';
