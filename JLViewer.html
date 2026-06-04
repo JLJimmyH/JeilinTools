@@ -180,22 +180,37 @@
   .ctrl-range::-moz-range-track { height: 4px; background: var(--range-track); border-radius: 2px; border: none; }
 
   /* ── Toolbar ────────────────────────────────────────────────── */
-  .toolbar {
+  .app-bar, .view-toolbar, .compare-toolbar {
     background: var(--bg-elevated); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     padding: 8px 16px; display: flex; align-items: center; gap: 12px;
     border-bottom: 1px solid var(--border); min-height: 48px;
     position: relative; z-index: 3; box-shadow: var(--toolbar-shadow);
     transition: background var(--duration) var(--ease-out), border-color var(--duration) var(--ease-out), box-shadow var(--duration) var(--ease-out);
   }
-  .toolbar h1 {
+  .app-bar { z-index: 5; }   /* 常駐主列，永遠疊在 view 之上 */
+  .app-bar h1, .compare-toolbar h2 {
     font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
     background: linear-gradient(180deg, var(--title-from) 20%, var(--title-to) 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     white-space: nowrap;
   }
-  .toolbar .sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
-  .toolbar .info { font-size: 12px; color: var(--fg-muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-bar .sep, .view-toolbar .sep, .compare-toolbar .sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+  .app-bar .bar-spacer { flex: 1 1 auto; }
+  .view-toolbar .info, .compare-toolbar .info { font-size: 12px; color: var(--fg-muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #btn-theme { font-size: 16px; line-height: 1; padding: 4px 8px; -webkit-text-fill-color: initial; }
+
+  /* ── 模式 view stack（單一 / 比較 交叉淡入）──────────────── */
+  .view-stack { position: relative; flex: 1; overflow: hidden; }
+  .view {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden; transform: translateY(6px); pointer-events: none;
+    transition: opacity .22s var(--ease-out), transform .22s var(--ease-out), visibility 0s linear .22s;
+  }
+  .view-stack[data-mode="single"] #view-single,
+  .view-stack[data-mode="compare"] #compare-overlay {
+    opacity: 1; visibility: visible; transform: none; pointer-events: auto; z-index: 2;
+    transition: opacity .22s var(--ease-out), transform .22s var(--ease-out);
+  }
 
   /* ── Main Area ──────────────────────────────────────────────── */
   .main-area { flex: 1; display: flex; overflow: hidden; position: relative; z-index: 2; }
@@ -258,6 +273,13 @@
   .channel-btn:hover { background: var(--surface-hover); }
   .channel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .channel-btn.active:hover { background: var(--accent-bright); }
+  /* 模式切換 segmented switch — 刻意做成藥丸開關，與一般 ctrl-btn 區隔 */
+  .mode-switch { position: relative; flex-shrink: 0; display: inline-flex; padding: 3px; background: var(--range-track); border: 1px solid var(--border); border-radius: 999px; box-shadow: inset 0 1px 3px var(--btn-shadow); user-select: none; }
+  .mode-switch .ms-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 999px; background: var(--accent); box-shadow: 0 1px 5px var(--accent-glow), 0 1px 2px var(--btn-shadow); transition: transform .2s cubic-bezier(.4,0,.2,1); }
+  .mode-switch.compare .ms-thumb { transform: translateX(100%); }
+  .mode-switch .ms-seg { position: relative; z-index: 1; flex: 1 1 0; min-width: 60px; padding: 3px 14px; font-size: 12px; font-weight: 600; line-height: 1.5; letter-spacing: 0.02em; white-space: nowrap; text-align: center; cursor: pointer; background: none; border: none; color: var(--fg-muted); transition: color .2s ease; }
+  .mode-switch .ms-seg:hover { color: var(--fg); }
+  .mode-switch.single .ms-seg[data-mode="single"], .mode-switch.compare .ms-seg[data-mode="compare"] { color: #fff; }
   .format-text { font-size: 12px; color: var(--fg-muted); line-height: 1.5; word-break: break-all; }
   .info-table { width: 100%; border-collapse: collapse; }
   .info-table td { padding: 2px 0; vertical-align: top; font-size: 12px; }
@@ -365,25 +387,8 @@
     pointer-events: none; z-index: 5;
     box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
   }
-  #compare-overlay {
-    display: none; position: fixed; inset: 0; z-index: 100;
-    background: var(--bg-base); flex-direction: column;
-  }
-  #compare-overlay.active { display: flex; }
-
-  .compare-toolbar {
-    background: var(--bg-elevated); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    padding: 8px 16px; display: flex; align-items: center; gap: 12px;
-    border-bottom: 1px solid var(--border); min-height: 48px;
-    position: relative; z-index: 3; box-shadow: var(--toolbar-shadow);
-  }
-  .compare-toolbar h2 {
-    font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
-    background: linear-gradient(180deg, var(--title-from) 20%, var(--title-to) 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    white-space: nowrap;
-  }
-  .compare-toolbar .info { font-size: 12px; color: var(--fg-muted); margin-left: auto; white-space: nowrap; }
+  /* #compare-overlay 已改為 .view（淡入淡出見上方 view-stack 規則）；
+     .compare-toolbar 基底/sep/info 樣式併入上方共用選擇器，不再單獨定義 */
 
   .compare-body { flex: 1; display: flex; overflow: hidden; position: relative; }
 
@@ -485,9 +490,9 @@
   /* ── Mobile ──────────────────────────────────────────────── */
   @media (max-width: 768px) {
     body { height: 100dvh; }
-    .toolbar { padding: 6px 10px; gap: 8px; flex-wrap: wrap; min-height: 40px; }
-    .toolbar h1 { font-size: 14px; }
-    .toolbar .info { font-size: 11px; max-width: 40vw; }
+    .app-bar, .view-toolbar, .compare-toolbar { padding: 6px 10px; gap: 8px; flex-wrap: wrap; min-height: 40px; }
+    .app-bar h1 { font-size: 14px; }
+    .view-toolbar .info, .compare-toolbar .info { font-size: 11px; max-width: 40vw; }
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 20; width: 220px; transform: translateX(0); }
     .sidebar.collapsed { transform: translateX(-220px); width: 220px; border-right: none; }
     .sidebar-toggle { right: -28px; width: 28px; height: 48px; font-size: 14px; }
@@ -508,21 +513,31 @@
 </div>
 <div class="noise-overlay" aria-hidden="true"></div>
 
-<div class="toolbar">
+<div class="app-bar">
   <a href="index.html" class="ctrl-btn" style="text-decoration:none;font-size:13px;padding:4px 10px;letter-spacing:0.05em" title="返回工具選單">← JL2O</a>
   <div class="sep"></div>
   <h1>JL Viewer</h1>
   <div class="sep"></div>
-  <button class="ctrl-btn" id="btn-open">開啟檔案</button>
-  <div class="sep"></div>
-  <button class="ctrl-btn" id="btn-fit">適合視窗</button>
-  <button class="ctrl-btn" id="btn-100">1:1</button>
-  <button class="ctrl-btn" id="btn-compare">比較</button>
+  <div class="mode-switch single" id="mode-switch-main">
+    <span class="ms-thumb"></span>
+    <button class="ms-seg" data-mode="single">單一圖片</button>
+    <button class="ms-seg" data-mode="compare">圖片比較</button>
+  </div>
+  <div class="bar-spacer"></div>
   <button class="ctrl-btn" id="btn-theme" title="切換日間/夜間模式" aria-label="切換日間/夜間模式">&#x1F319;</button>
-  <span class="info" id="info"></span>
 </div>
 
-<div class="main-area">
+<div class="view-stack" id="view-stack" data-mode="single">
+  <section class="view" id="view-single">
+    <div class="view-toolbar">
+      <button class="ctrl-btn" id="btn-open">開啟檔案</button>
+      <div class="sep"></div>
+      <button class="ctrl-btn" id="btn-fit">適合視窗</button>
+      <button class="ctrl-btn" id="btn-100">1:1</button>
+      <span class="info" id="info"></span>
+    </div>
+
+    <div class="main-area">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-content">
 
@@ -632,15 +647,11 @@
     </div>
   </div>
 </div>
+  </section>
 
-<div id="pixel-info"><div id="pixel-swatch"></div><span id="pixel-text"></span></div>
-<div class="thumb-lightbox" id="thumb-lightbox"><img id="thumb-lightbox-img"></div>
-
-<!-- ── Compare Mode Overlay ──────────────────────────────────── -->
-<div id="compare-overlay">
-  <div class="compare-toolbar">
-    <h2>Compare</h2>
-    <div class="sep"></div>
+  <!-- ── 比較模式（與單一模式同層，交叉淡入）──────────────── -->
+  <section class="view" id="compare-overlay">
+  <div class="compare-toolbar view-toolbar">
     <button class="ctrl-btn" id="cmp-btn-open-a">開啟圖 A</button>
     <button class="ctrl-btn" id="cmp-btn-open-b">開啟圖 B</button>
     <div class="sep"></div>
@@ -659,8 +670,6 @@
     <button class="ctrl-btn" id="cmp-btn-fit">適合視窗</button>
     <button class="ctrl-btn" id="cmp-btn-100">1:1</button>
     <button class="ctrl-btn" id="cmp-btn-swap">A/B 互換</button>
-    <div class="sep"></div>
-    <button class="ctrl-btn" id="cmp-btn-close">返回檢視器</button>
     <span class="info" id="cmp-info"></span>
   </div>
   <div class="compare-body" id="compare-body">
@@ -784,7 +793,11 @@
       </div>
     </div>
   </div>
+  </section>
 </div>
+
+<div id="pixel-info"><div id="pixel-swatch"></div><span id="pixel-text"></span></div>
+<div class="thumb-lightbox" id="thumb-lightbox"><img id="thumb-lightbox-img"></div>
 <div id="compare-pixel-info"></div>
 
 <input type="file" id="file-input" accept=".jr2,.JR2,.argb8888,.argb4444,.argb1555,.rgb565,.rgb332,.argb2222,.jlargb8888,.jlargb4444,.jlargb1555,.jlargb2222,.jlargb8,.jlargb4,.jlargb2,.png,.PNG,.jpg,.jpeg,.JPG,.JPEG,.bmp,.BMP,.yuv,.YUV,.nv12,.nv21,.i420,.yv12,.422,.yuyv,.uyvy,.yuy2,.444,.y,.raw,.RAW,.rgb888,.RGB,.rgb,.bi8">
@@ -2358,6 +2371,7 @@
   // ══════════════════════════════════════════════════════════════
 
   const cmpOverlay = document.getElementById('compare-overlay');
+  const viewStack = document.getElementById('view-stack');
   const cmpBody = document.getElementById('compare-body');
   const cmpView = document.getElementById('compare-view');
   const cmpCanvasWrap = document.getElementById('compare-canvas-wrap');
@@ -3459,21 +3473,33 @@
     cmpDualPanelB.style.cursor = '';
   });
 
-  // ── Compare buttons ─────────────────────────────────────────
+  // ── 模式切換 (單一圖片 / 圖片比較) ───────────────────────────
 
-  document.getElementById('btn-compare').addEventListener('click', () => {
-    cmpOverlay.classList.add('active');
-    if (cmpImgA && cmpImgB) {
-      requestAnimationFrame(() => {
-        if (cmpViewMode === 'side') cmpDualFitToWindow();
-        else cmpFitToWindow();
-      });
+  function setViewerMode(mode) {
+    const isCompare = mode === 'compare';
+    // view-stack data-mode 驅動兩個 .view 交叉淡入（CSS transition）
+    viewStack.dataset.mode = mode;
+    // 保留 #compare-overlay.active 旗標，供 resize 等既有判斷沿用
+    cmpOverlay.classList.toggle('active', isCompare);
+    // 單一常駐 switch：class 切換觸發 thumb 滑動動畫
+    document.querySelectorAll('.mode-switch').forEach(sw => {
+      sw.classList.toggle('compare', isCompare);
+      sw.classList.toggle('single', !isCompare);
+    });
+    if (isCompare) {
+      if (cmpImgA && cmpImgB) {
+        requestAnimationFrame(() => {
+          if (cmpViewMode === 'side') cmpDualFitToWindow();
+          else cmpFitToWindow();
+        });
+      }
+    } else {
+      cmpPixelInfo.style.display = 'none';
     }
-  });
+  }
 
-  document.getElementById('cmp-btn-close').addEventListener('click', () => {
-    cmpOverlay.classList.remove('active');
-    cmpPixelInfo.style.display = 'none';
+  document.querySelectorAll('.mode-switch .ms-seg').forEach(seg => {
+    seg.addEventListener('click', () => setViewerMode(seg.dataset.mode));
   });
 
   document.getElementById('cmp-btn-fit').addEventListener('click', () => {
@@ -3523,8 +3549,7 @@
   // ESC to close compare
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && cmpOverlay.classList.contains('active')) {
-      cmpOverlay.classList.remove('active');
-      cmpPixelInfo.style.display = 'none';
+      setViewerMode('single');
     }
   });
 })();
