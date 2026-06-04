@@ -6,57 +6,108 @@
 <title>gcsv IMU_ORIENTATION 分析器</title>
 <style>
   :root{
-    --bg:#11151c; --panel:#1a2130; --panel2:#222b3d; --line:#2e3a52;
-    --txt:#e6edf6; --mut:#8aa0bd; --acc:#4da3ff; --ok:#39d98a; --warn:#ffb454; --err:#ff6b6b;
-    --gx:#ff5d62; --gy:#46d27e; --gz:#5aa9ff;
+    --bg:#0a0a0f; --panel:#12121a; --panel2:#1c1c2e; --line:#2a2a3a;
+    --txt:#e0e0e0; --mut:#6b7280; --acc:#00ff88; --acc2:#ff00ff; --acc3:#00d4ff;
+    --ok:#00ff88; --warn:#ffb454; --err:#ff3366;
+    --gx:#ff00ff; --gy:#00ff88; --gz:#00d4ff;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
+    --glow:0 0 5px var(--acc),0 0 10px rgba(0,255,136,.35);
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.55 "Segoe UI",system-ui,sans-serif}
-  h1{font-size:18px;margin:0 0 2px}
-  h2{font-size:14px;margin:0 0 8px;color:var(--mut);font-weight:600;letter-spacing:.5px}
-  .wrap{max-width:1200px;margin:0 auto;padding:18px}
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:14px/1.55 var(--mono);position:relative;min-height:100vh;overflow-x:hidden}
+
+  /* 電路網格背景 */
+  body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(0,255,136,.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,255,136,.03) 1px,transparent 1px);
+    background-size:50px 50px;}
+  /* 掃描線 */
+  body::after{content:'';position:fixed;inset:0;z-index:100;pointer-events:none;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);}
+
+  .ambient{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0}
+  .ambient.g{width:460px;height:460px;background:rgba(0,255,136,.07);top:-160px;left:-140px}
+  .ambient.m{width:380px;height:380px;background:rgba(255,0,255,.05);bottom:-120px;right:-120px}
+  .ambient.c{width:340px;height:340px;background:rgba(0,212,255,.05);bottom:-100px;left:30%}
+
+  .wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:18px}
+
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.16em;text-transform:uppercase;
+     color:var(--acc);text-shadow:0 0 10px rgba(0,255,136,.6),-1px 0 rgba(255,0,255,.45),1px 0 rgba(0,212,255,.45)}
+  h2{font-size:12px;margin:0 0 10px;color:var(--acc3);font-weight:700;
+     letter-spacing:.22em;text-transform:uppercase}
+  h2::before{content:'// ';color:var(--mut)}
+
   .row{display:flex;gap:14px;flex-wrap:wrap}
   .col{flex:1;min-width:300px}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
-  #drop{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--mut);
-        transition:.15s;cursor:pointer;background:var(--panel)}
-  #drop.hot{border-color:var(--acc);color:var(--txt);background:#16263b}
-  #drop b{color:var(--acc)}
-  canvas{width:100%;height:340px;display:block;background:#0c1018;border-radius:8px;border:1px solid var(--line);cursor:crosshair}
+
+  .panel{background:rgba(18,18,26,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    border:1px solid var(--line);border-radius:2px;padding:14px;margin-bottom:14px;
+    transition:border-color .3s,box-shadow .3s}
+  .panel:hover{border-color:#3a3a52}
+
+  #drop{border:2px dashed var(--line);border-radius:2px;padding:26px;text-align:center;color:var(--mut);
+        transition:.15s;cursor:pointer;background:rgba(18,18,26,.5);
+        clip-path:polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px))}
+  #drop.hot{border-color:var(--acc);color:var(--txt);background:#0e1f17;box-shadow:inset 0 0 24px rgba(0,255,136,.15)}
+  #drop b{color:var(--acc);text-shadow:var(--glow)}
+
+  canvas{width:100%;height:340px;display:block;background:#07090e;border-radius:2px;border:1px solid var(--line);cursor:crosshair}
+
   table{border-collapse:collapse;width:100%;font-size:13px}
   td,th{border:1px solid var(--line);padding:5px 8px;text-align:left}
-  th{color:var(--mut);font-weight:600;background:var(--panel2)}
-  .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px}
-  .kv b{color:var(--mut);font-weight:600}
-  .mono{font-family:"Cascadia Code",Consolas,monospace}
-  button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;
-         padding:7px 12px;cursor:pointer;font-size:13px}
-  button:hover{border-color:var(--acc)}
-  button.assign{width:100%;text-align:left}
-  button.assign.armed{border-color:var(--acc);background:#16263b}
-  .pill{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;border:1px solid var(--line)}
+  th{color:var(--acc3);font-weight:700;background:var(--panel2);text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px}
+  .kv b{color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px}
+  .mono{font-family:var(--mono)}
+
+  button{background:transparent;color:var(--acc);border:1px solid var(--acc);border-radius:0;
+         padding:7px 12px;cursor:pointer;font-size:12px;font-family:var(--mono);
+         text-transform:uppercase;letter-spacing:.12em;transition:all .15s}
+  button:hover{background:var(--acc);color:var(--bg);box-shadow:var(--glow)}
+  button.assign{width:100%;text-align:left;border-color:var(--line);color:var(--txt);text-transform:none;letter-spacing:.02em}
+  button.assign:hover{border-color:var(--acc);background:transparent;color:var(--acc);box-shadow:none}
+  button.assign.armed{border-color:var(--acc);background:#0e1f17;color:var(--acc)}
+
+  .pill{display:inline-block;padding:1px 8px;border-radius:0;font-size:12px;border:1px solid var(--line)}
   .legend span{display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:12px}
-  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
-  .mslot{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;background:var(--panel2)}
+  .swatch{width:12px;height:12px;border-radius:0;display:inline-block}
+
+  .mslot{border:1px solid var(--line);border-radius:2px;padding:10px;margin-bottom:10px;background:rgba(28,28,46,.5)}
   .mslot .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .mslot .hd .nm{font-weight:600}
+  .mslot .hd .nm{font-weight:700;color:var(--txt)}
   .mslot .st{font-size:12px;color:var(--mut);min-height:18px}
   .mslot label{font-size:12px;color:var(--mut);user-select:none}
-  #result .big{font-size:30px;font-weight:700;letter-spacing:2px}
+
+  #result .big{font-size:30px;font-weight:700;letter-spacing:3px}
   #result .arrow{color:var(--mut);margin:0 10px}
+
   .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)} .acc{color:var(--acc)} .mut{color:var(--mut)}
+  .big.acc,.big.ok{text-shadow:0 0 10px rgba(0,255,136,.6)}
   .hint{font-size:12px;color:var(--mut)}
   ul.tips{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--mut)}
   ul.tips li{margin:2px 0}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
-  select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:6px}
+  select{background:var(--panel2);color:var(--acc);border:1px solid var(--line);border-radius:0;
+         padding:6px;font-family:var(--mono);font-size:12px}
+  select:focus{outline:none;border-color:var(--acc);box-shadow:var(--glow)}
   .warnbox{margin-top:8px}
   .warnbox div{padding:3px 0}
-  code{background:#0c1018;padding:1px 5px;border-radius:4px}
+  code{background:#07090e;padding:1px 5px;border-radius:0;color:var(--acc3);border:1px solid var(--line)}
+  a{color:var(--acc)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+<div class="ambient g"></div>
+<div class="ambient m"></div>
+<div class="ambient c"></div>
 <div class="wrap">
+  <div class="hint" style="margin-bottom:4px"><a href="index.html" class="acc" style="text-decoration:none">&larr; JL2Os</a></div>
   <h1>gcsv → IMU_ORIENTATION 分析器</h1>
   <div class="hint">拖曳 Gyroflow <b>.gcsv</b> 進來，在波形上框選三個動作（pitch↑ / yaw← / roll→），算出 board.h 該用的 <code>IMU_ORIENTATION</code> 字串。Gyroflow 標準座標。離線、單檔、不上傳。</div>
 
@@ -157,7 +208,7 @@ const SLOT_DEF = [
 ];
 const AXIS_LETTER = ['X','Y','Z'];        // raw 欄位 gx,gy,gz -> X,Y,Z
 const AXIS_COLOR  = ['var(--gx)','var(--gy)','var(--gz)'];
-const AXIS_HEX    = ['#ff5d62','#46d27e','#5aa9ff'];
+const AXIS_HEX    = ['#ff00ff','#00ff88','#00d4ff'];
 
 let DATA = null;   // {n, t:[], g:[[],[],[]], header:{}, chip}
 let motions = { yaw:null, pitch:null, roll:null };  // 每個 = {a,b,reverse, axis,Ssign,i0,i1}
@@ -370,10 +421,10 @@ function render(){
   ctx.clearRect(0,0,W,H);
 
   // grid + 零線
-  ctx.strokeStyle='#1d2738'; ctx.lineWidth=1;
+  ctx.strokeStyle='#2a2a3a'; ctx.lineWidth=1;
   ctx.strokeRect(plot.x,plot.y,plot.w,plot.h);
   ctx.beginPath(); const yz=valToY(0); ctx.moveTo(plot.x,yz); ctx.lineTo(plot.x+plot.w,yz); ctx.stroke();
-  ctx.fillStyle='#6b7d99'; ctx.font='11px monospace';
+  ctx.fillStyle='#6b7280'; ctx.font='11px monospace';
   ctx.fillText('0',6,yz+3);
   ctx.fillText('+'+Math.round(mx),4,valToY(mx*0.92)+3);
   ctx.fillText('-'+Math.round(mx),4,valToY(-mx*0.92)+3);
@@ -382,22 +433,22 @@ function render(){
   for(const def of SLOT_DEF){
     const m=motions[def.key]; if(!m) continue;
     const x0=idxToX(m.a), x1=idxToX(m.b);
-    ctx.fillStyle='rgba(120,150,200,0.08)';
+    ctx.fillStyle='rgba(0,212,255,0.06)';
     ctx.fillRect(x0,plot.y,x1-x0,plot.h);
     if(m.i0!=null){
       const o0=idxToX(m.i0), o1=idxToX(m.i1);
-      ctx.fillStyle='rgba(77,163,255,0.18)';
+      ctx.fillStyle='rgba(0,212,255,0.18)';
       ctx.fillRect(o0,plot.y,o1-o0,plot.h);
     }
-    ctx.fillStyle='#9fb3d1'; ctx.font='11px sans-serif';
+    ctx.fillStyle='#8a8aa0'; ctx.font='11px monospace';
     ctx.fillText(def.key, x0+3, plot.y+12);
   }
   // pending 框選
   if(pending){
     const x0=idxToX(pending.a), x1=idxToX(pending.b);
-    ctx.fillStyle='rgba(57,217,138,0.14)';
+    ctx.fillStyle='rgba(0,255,136,0.12)';
     ctx.fillRect(Math.min(x0,x1),plot.y,Math.abs(x1-x0),plot.h);
-    ctx.strokeStyle='rgba(57,217,138,0.7)'; ctx.strokeRect(Math.min(x0,x1),plot.y,Math.abs(x1-x0),plot.h);
+    ctx.strokeStyle='rgba(0,255,136,0.7)'; ctx.strokeRect(Math.min(x0,x1),plot.y,Math.abs(x1-x0),plot.h);
   }
 
   // 三軸波形
