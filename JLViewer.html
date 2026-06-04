@@ -387,46 +387,29 @@
     pointer-events: none; z-index: 5;
     box-shadow: inset 0 1px 0 0 var(--tooltip-inset), 0 4px 24px var(--tooltip-shadow);
   }
+  /* 並排面板兼作拖放區：空白側顯示拖放提示，載入後顯示影像 */
+  .cmp-dual-panel { cursor: pointer; }
+  .cmp-dual-panel.has-image { cursor: grab; }
+  .cmp-dual-drop {
+    position: absolute; inset: 0; margin: 16px; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    border: 2px dashed var(--dropzone-border); border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--dropzone-bg-from) 0%, var(--dropzone-bg-to) 100%);
+    transition: border-color var(--duration) var(--ease-out), background var(--duration) var(--ease-out);
+  }
+  .cmp-dual-panel.has-image .cmp-dual-drop { display: none; }
+  .cmp-dual-panel.dragover .cmp-dual-drop { border-color: var(--accent); background: rgba(94,106,210,0.06); }
+  .cmp-dual-drop .icon { font-size: 48px; opacity: var(--icon-opacity); filter: var(--icon-filter); }
+  .cmp-dual-drop p { font-size: 16px; font-weight: 500; margin-top: 8px; color: var(--fg-muted); }
+  .cmp-dual-drop .hint { font-size: 12px; color: var(--fg-dim); margin-top: 6px; }
+  .cmp-mode-btn.disabled { opacity: 0.4; pointer-events: none; }
+
   /* #compare-overlay 已改為 .view（淡入淡出見上方 view-stack 規則）；
      .compare-toolbar 基底/sep/info 樣式併入上方共用選擇器，不再單獨定義 */
 
   .compare-body { flex: 1; display: flex; overflow: hidden; position: relative; }
 
-  /* Loading panels */
-  .compare-load-panel {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border: 2px dashed var(--dropzone-border); margin: 16px;
-    border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--dropzone-bg-from) 0%, var(--dropzone-bg-to) 100%);
-    cursor: pointer; transition: border-color var(--duration) var(--ease-out);
-    position: relative;
-  }
-  .compare-load-panel.has-image {
-    border-style: solid; border-color: var(--accent); cursor: default;
-    background: transparent; border-radius: var(--radius-lg); overflow: hidden;
-  }
-  .compare-load-panel .cmp-preview-wrap {
-    position: relative; width: 100%; height: 100%; display: flex;
-    align-items: center; justify-content: center; overflow: hidden;
-  }
-  .compare-load-panel .cmp-preview-wrap canvas {
-    image-rendering: pixelated; max-width: 100%; max-height: 100%; object-fit: contain;
-  }
-  .compare-load-panel .cmp-preview-label {
-    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-    background: var(--bg-tooltip); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
-    font-size: 12px; color: var(--fg-muted); white-space: nowrap; pointer-events: none;
-  }
-  .compare-load-panel:hover:not(.has-image), .compare-load-panel.dragover {
-    border-color: var(--accent);
-    background: rgba(94, 106, 210, 0.04);
-  }
-  .compare-load-panel .load-placeholder { text-align: center; pointer-events: none; }
-  .compare-load-panel .load-placeholder .icon { font-size: 48px; opacity: var(--icon-opacity); filter: var(--icon-filter); }
-  .compare-load-panel .load-placeholder p { font-size: 16px; font-weight: 500; margin-top: 8px; color: var(--fg-muted); }
-  .compare-load-panel .load-placeholder .hint { font-size: 12px; color: var(--fg-dim); margin-top: 6px; }
-  .compare-load-separator { width: 1px; background: var(--border); flex-shrink: 0; margin: 16px 0; }
+  /* 舊的獨立 drop panel 已移除，改由並排面板 .cmp-dual-drop 兼作拖放區 */
 
   /* Split view */
   #compare-view {
@@ -656,9 +639,9 @@
     <button class="ctrl-btn" id="cmp-btn-open-b">開啟圖 B</button>
     <div class="sep"></div>
     <div class="cmp-mode-group">
-      <button class="ctrl-btn cmp-mode-btn" data-mode="side">Side</button>
-      <button class="ctrl-btn cmp-mode-btn active" data-mode="split">Split</button>
-      <button class="ctrl-btn cmp-mode-btn" data-mode="diff">Diff</button>
+      <button class="ctrl-btn cmp-mode-btn active" data-mode="side">Side</button>
+      <button class="ctrl-btn cmp-mode-btn disabled" data-mode="split">Split</button>
+      <button class="ctrl-btn cmp-mode-btn disabled" data-mode="diff">Diff</button>
     </div>
     <select class="ctrl-select" id="cmp-diff-gain" style="display:none">
       <option value="1">1x</option>
@@ -751,22 +734,6 @@
         </div>
       </div>
     </aside>
-    <!-- Drop panels -->
-    <div class="compare-load-panel" id="cmp-drop-a">
-      <div class="load-placeholder">
-        <div class="icon">&#x1F5BC;</div>
-        <p>拖曳或點擊載入圖片 A</p>
-        <div class="hint">支援 JPG / BMP / PNG 及所有 JL 格式</div>
-      </div>
-    </div>
-    <div class="compare-load-separator"></div>
-    <div class="compare-load-panel" id="cmp-drop-b">
-      <div class="load-placeholder">
-        <div class="icon">&#x1F5BC;</div>
-        <p>拖曳或點擊載入圖片 B</p>
-        <div class="hint">支援 JPG / BMP / PNG 及所有 JL 格式</div>
-      </div>
-    </div>
     <!-- Split / Diff view -->
     <div id="compare-view">
       <div id="compare-canvas-wrap">
@@ -781,15 +748,25 @@
       <div class="compare-label compare-label-b" id="cmp-label-b">B</div>
     </div>
     <!-- Side-by-side (dual) view -->
-    <div id="compare-dual-view">
+    <div id="compare-dual-view" class="active">
       <div class="cmp-dual-panel" id="cmp-dual-panel-a">
         <canvas id="cmp-dual-canvas-a"></canvas>
         <div class="cmp-dual-label" id="cmp-dual-label-a">A</div>
+        <div class="cmp-dual-drop">
+          <div class="icon">&#x1F5BC;</div>
+          <p>拖曳或點擊載入圖片 A</p>
+          <div class="hint">支援 JPG / BMP / PNG 及所有 JL 格式</div>
+        </div>
       </div>
       <div class="cmp-dual-sep"></div>
       <div class="cmp-dual-panel" id="cmp-dual-panel-b">
         <canvas id="cmp-dual-canvas-b"></canvas>
         <div class="cmp-dual-label" id="cmp-dual-label-b">B</div>
+        <div class="cmp-dual-drop">
+          <div class="icon">&#x1F5BC;</div>
+          <p>拖曳或點擊載入圖片 B</p>
+          <div class="hint">支援 JPG / BMP / PNG 及所有 JL 格式</div>
+        </div>
       </div>
     </div>
   </div>
@@ -2387,8 +2364,6 @@
   const cmpInfo = document.getElementById('cmp-info');
   const cmpLabelA = document.getElementById('cmp-label-a');
   const cmpLabelB = document.getElementById('cmp-label-b');
-  const cmpDropA = document.getElementById('cmp-drop-a');
-  const cmpDropB = document.getElementById('cmp-drop-b');
   const cmpFileA = document.getElementById('cmp-file-a');
   const cmpFileB = document.getElementById('cmp-file-b');
 
@@ -2428,7 +2403,7 @@
   let cmpDragging = false, cmpDivDragging = false;
   let cmpDragStartX, cmpDragStartY, cmpPanStartX, cmpPanStartY;
   let cmpDividerX = 0.5;
-  let cmpViewMode = 'split'; // 'split' | 'diff'
+  let cmpViewMode = 'side'; // 'side' | 'split' | 'diff'
   let cmpActiveTab = 'a';
 
   function cmpDefaultParams() {
@@ -2928,6 +2903,7 @@
   }
 
   function cmpSetViewMode(mode) {
+    if ((mode === 'split' || mode === 'diff') && !(cmpImgA && cmpImgB)) return; // 需兩圖才可比較
     cmpViewMode = mode;
     document.querySelectorAll('.cmp-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     cmpDiffGainSelect.style.display = mode === 'diff' ? '' : 'none';
@@ -2967,6 +2943,7 @@
           cmpApplyTransform();
         }
       }
+      if (cmpImgA && cmpImgB) requestAnimationFrame(() => cmpFitToWindow());
     }
   }
 
@@ -2999,6 +2976,7 @@
   [[cmpDualPanelA, 'a'], [cmpDualPanelB, 'b']].forEach(([panel, side]) => {
     panel.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (!cmpImgA && !cmpImgB) return;
       const rect = panel.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       const old = cmpScale;
@@ -3010,16 +2988,23 @@
 
     panel.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
+      if (!cmpImgA && !cmpImgB) return;   // 空白狀態不啟動拖曳平移
       cmpDragging = true;
       cmpDragStartX = e.clientX; cmpDragStartY = e.clientY;
       cmpPanStartX = cmpPanX; cmpPanStartY = cmpPanY;
       panel.style.cursor = 'grabbing';
     });
 
-    panel.addEventListener('dragover', (e) => e.preventDefault());
+    // 並排面板兼作拖放區
+    panel.addEventListener('dragover', (e) => { e.preventDefault(); panel.classList.add('dragover'); });
+    panel.addEventListener('dragleave', () => panel.classList.remove('dragover'));
     panel.addEventListener('drop', (e) => {
-      e.preventDefault();
+      e.preventDefault(); panel.classList.remove('dragover');
       if (e.dataTransfer.files[0]) cmpLoadFile(e.dataTransfer.files[0], side);
+    });
+    // 空白側點擊 → 開檔
+    panel.addEventListener('click', () => {
+      if (!(side === 'a' ? cmpImgA : cmpImgB)) (side === 'a' ? cmpFileA : cmpFileB).click();
     });
   });
 
@@ -3182,6 +3167,12 @@
 
   // ── Sidebar: Re-parse on parameter change ───────────────────
 
+  // 依目前檢視模式選擇正確的 fit（side 用並排幾何，split/diff 用疊圖幾何）
+  function cmpFitCurrent() {
+    if (cmpViewMode === 'side') cmpDualFitToWindow();
+    else cmpFitToWindow();
+  }
+
   function cmpReparse(img, side) {
     if (!img || !img.arrayBuffer) return;
     const result = parseFileToRGBA(img.arrayBuffer, img.name, img.params);
@@ -3212,14 +3203,14 @@
     p.width = parseInt(cmpInputWidth.value) || null;
     p.height = parseInt(cmpInputHeight.value) || null;
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
-    cmpFitToWindow();
+    cmpFitCurrent();
   });
   cmpInputHeight.addEventListener('input', () => {
     const p = cmpGetCurrentSideParams(); if (!p) return;
     p.width = parseInt(cmpInputWidth.value) || null;
     p.height = parseInt(cmpInputHeight.value) || null;
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
-    cmpFitToWindow();
+    cmpFitCurrent();
   });
 
   // JR2 controls
@@ -3234,7 +3225,7 @@
     cmpGval.textContent = p.jr2Gamma.toFixed(1);
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
   }
-  cmpModeSelect.addEventListener('change', () => { cmpJR2Change(); cmpFitToWindow(); });
+  cmpModeSelect.addEventListener('change', () => { cmpJR2Change(); cmpFitCurrent(); });
   cmpBrightnessInput.addEventListener('input', cmpJR2Change);
   cmpContrastInput.addEventListener('input', cmpJR2Change);
   cmpGammaInput.addEventListener('input', cmpJR2Change);
@@ -3256,7 +3247,7 @@
     p.width = parseInt(cmpInputWidth.value) || null;
     p.height = parseInt(cmpInputHeight.value) || null;
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
-    cmpFitToWindow();
+    cmpFitCurrent();
   }
   cmpYuvFormatSelect.addEventListener('change', cmpYuvAutoApply);
   cmpYuvBitdepthSelect.addEventListener('change', cmpYuvAutoApply);
@@ -3269,7 +3260,7 @@
     p.width = parseInt(cmpInputWidth.value) || null;
     p.height = parseInt(cmpInputHeight.value) || null;
     cmpReparse(cmpGetActiveImg(), cmpActiveTab);
-    cmpFitToWindow();
+    cmpFitCurrent();
   });
 
   // Background — re-render all affected canvases
@@ -3287,102 +3278,57 @@
     }
   });
 
-  // ── Start view ─────────────────────────────────────────────
+  // ── 比較模式載入流程（並排面板兼作拖放區）──────────────────
 
-  function cmpStartView() {
-    if (!cmpImgA || !cmpImgB) return;
-    cmpRenderAll();
-    cmpDropA.style.display = 'none';
-    cmpDropB.style.display = 'none';
-    document.querySelector('.compare-load-separator').style.display = 'none';
-    cmpView.classList.add('active');
-    cmpDividerX = 0.5;
-    cmpSetViewMode(cmpViewMode);
-    cmpUpdateLabels();
-    cmpSwitchTab(cmpActiveTab);
-    requestAnimationFrame(() => { cmpFitToWindow(); });
-  }
-
-  // ── Drop panel events ───────────────────────────────────────
-
-  function cmpShowPreview(panel, img) {
-    panel.classList.add('has-image');
-    const cvs = document.createElement('canvas');
-    cmpRenderCanvas(cvs, cvs.getContext('2d'), img);
-    panel.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'cmp-preview-wrap';
-    wrap.appendChild(cvs);
-    const label = document.createElement('div');
-    label.className = 'cmp-preview-label';
-    label.textContent = `${img.name}  ${img.width}×${img.height}`;
-    wrap.appendChild(label);
-    panel.appendChild(wrap);
+  // 依是否兩圖都載入，啟用/停用 Split、Diff（Side 永遠可用）
+  function cmpUpdateModeButtons() {
+    const both = !!(cmpImgA && cmpImgB);
+    document.querySelectorAll('.cmp-mode-btn').forEach(b => {
+      if (b.dataset.mode === 'side') return;
+      b.classList.toggle('disabled', !both);
+    });
   }
 
   async function cmpLoadFile(file, side) {
     try {
       const defaultP = cmpDefaultParams();
       const img = await loadImageAsRGBA(file, defaultP);
-      // Ensure params on the img object
       if (!img.params || Object.keys(img.params).length === 0) img.params = defaultP;
-      // Store detected width/height into params
       img.params.width = img.width;
       img.params.height = img.height;
       img.fileObj = file;
 
+      const panel = side === 'a' ? cmpDualPanelA : cmpDualPanelB;
+      if (side === 'a') cmpImgA = img; else cmpImgB = img;
+      panel.classList.add('has-image');
+
+      // 立即渲染該側（split 疊圖 + dual 並排）→ 拖入即顯示
       if (side === 'a') {
-        cmpImgA = img;
-        if (!cmpView.classList.contains('active')) cmpShowPreview(cmpDropA, img);
+        cmpRenderCanvas(cmpCanvasA, cmpCtxA, img);
+        cmpRenderCanvas(cmpDualCanvasA, cmpDualCtxA, img);
       } else {
-        cmpImgB = img;
-        if (!cmpView.classList.contains('active')) cmpShowPreview(cmpDropB, img);
+        cmpRenderCanvas(cmpCanvasB, cmpCtxB, img);
+        cmpRenderCanvas(cmpDualCanvasB, cmpDualCtxB, img);
       }
 
-      if (cmpImgA && cmpImgB) {
-        if (cmpView.classList.contains('active') || cmpDualView.classList.contains('active')) {
-          // Re-render affected canvases
-          if (side === 'a') {
-            cmpRenderCanvas(cmpCanvasA, cmpCtxA, img);
-            cmpRenderCanvas(cmpDualCanvasA, cmpDualCtxA, img);
-          } else {
-            cmpRenderCanvas(cmpCanvasB, cmpCtxB, img);
-            cmpRenderCanvas(cmpDualCanvasB, cmpDualCtxB, img);
-          }
-          if (cmpViewMode === 'diff') cmpRenderDiff();
-          if (cmpViewMode === 'side') {
-            cmpDualLabelA.textContent = 'A: ' + cmpImgA.name;
-            cmpDualLabelB.textContent = 'B: ' + cmpImgB.name;
-          }
-          cmpUpdateLabels();
-          if (cmpViewMode === 'side') cmpDualFitToWindow();
-          else cmpFitToWindow();
-        } else {
-          cmpStartView();
-        }
+      cmpDualLabelA.textContent = cmpImgA ? 'A: ' + cmpImgA.name : 'A';
+      cmpDualLabelB.textContent = cmpImgB ? 'B: ' + cmpImgB.name : 'B';
+      cmpUpdateModeButtons();
+      cmpUpdateLabels();
+      if (cmpViewMode === 'diff' && cmpImgA && cmpImgB) cmpRenderDiff();
+
+      // 兩圖齊備且目前在 split/diff → 套用該模式；否則維持 side
+      if (cmpImgA && cmpImgB && cmpViewMode !== 'side') {
+        cmpSetViewMode(cmpViewMode);
+      } else {
+        requestAnimationFrame(() => cmpDualFitToWindow());
       }
-      // Switch tab to the loaded side
+
       cmpSwitchTab(side);
     } catch (err) {
       alert(err.message);
     }
   }
-
-  function setupCmpDrop(panel, side) {
-    panel.addEventListener('dragover', (e) => { e.preventDefault(); panel.classList.add('dragover'); });
-    panel.addEventListener('dragleave', () => panel.classList.remove('dragover'));
-    panel.addEventListener('drop', (e) => {
-      e.preventDefault(); panel.classList.remove('dragover');
-      if (e.dataTransfer.files[0]) cmpLoadFile(e.dataTransfer.files[0], side);
-    });
-    panel.addEventListener('click', () => {
-      if (!panel.classList.contains('has-image')) {
-        (side === 'a' ? cmpFileA : cmpFileB).click();
-      }
-    });
-  }
-  setupCmpDrop(cmpDropA, 'a');
-  setupCmpDrop(cmpDropB, 'b');
 
   document.getElementById('cmp-btn-open-a').addEventListener('click', () => cmpFileA.click());
   document.getElementById('cmp-btn-open-b').addEventListener('click', () => cmpFileB.click());
@@ -3487,7 +3433,7 @@
       sw.classList.toggle('single', !isCompare);
     });
     if (isCompare) {
-      if (cmpImgA && cmpImgB) {
+      if (cmpImgA || cmpImgB) {
         requestAnimationFrame(() => {
           if (cmpViewMode === 'side') cmpDualFitToWindow();
           else cmpFitToWindow();
