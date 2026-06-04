@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gcsv IMU_ORIENTATION 分析器</title>
+<style>
+  :root{
+    --bg:#11151c; --panel:#1a2130; --panel2:#222b3d; --line:#2e3a52;
+    --txt:#e6edf6; --mut:#8aa0bd; --acc:#4da3ff; --ok:#39d98a; --warn:#ffb454; --err:#ff6b6b;
+    --gx:#ff5d62; --gy:#46d27e; --gz:#5aa9ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.55 "Segoe UI",system-ui,sans-serif}
+  h1{font-size:18px;margin:0 0 2px}
+  h2{font-size:14px;margin:0 0 8px;color:var(--mut);font-weight:600;letter-spacing:.5px}
+  .wrap{max-width:1200px;margin:0 auto;padding:18px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .col{flex:1;min-width:300px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  #drop{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--mut);
+        transition:.15s;cursor:pointer;background:var(--panel)}
+  #drop.hot{border-color:var(--acc);color:var(--txt);background:#16263b}
+  #drop b{color:var(--acc)}
+  canvas{width:100%;height:340px;display:block;background:#0c1018;border-radius:8px;border:1px solid var(--line);cursor:crosshair}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  td,th{border:1px solid var(--line);padding:5px 8px;text-align:left}
+  th{color:var(--mut);font-weight:600;background:var(--panel2)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px}
+  .kv b{color:var(--mut);font-weight:600}
+  .mono{font-family:"Cascadia Code",Consolas,monospace}
+  button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;
+         padding:7px 12px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--acc)}
+  button.assign{width:100%;text-align:left}
+  button.assign.armed{border-color:var(--acc);background:#16263b}
+  .pill{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;border:1px solid var(--line)}
+  .legend span{display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:12px}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .mslot{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;background:var(--panel2)}
+  .mslot .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .mslot .hd .nm{font-weight:600}
+  .mslot .st{font-size:12px;color:var(--mut);min-height:18px}
+  .mslot label{font-size:12px;color:var(--mut);user-select:none}
+  #result .big{font-size:30px;font-weight:700;letter-spacing:2px}
+  #result .arrow{color:var(--mut);margin:0 10px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)} .acc{color:var(--acc)} .mut{color:var(--mut)}
+  .hint{font-size:12px;color:var(--mut)}
+  ul.tips{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--mut)}
+  ul.tips li{margin:2px 0}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:6px}
+  .warnbox{margin-top:8px}
+  .warnbox div{padding:3px 0}
+  code{background:#0c1018;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>gcsv → IMU_ORIENTATION 分析器</h1>
+  <div class="hint">拖曳 Gyroflow <b>.gcsv</b> 進來，在波形上框選三個動作（pitch↑ / yaw← / roll→），算出 board.h 該用的 <code>IMU_ORIENTATION</code> 字串。Gyroflow 標準座標。離線、單檔、不上傳。</div>
+
+  <div class="panel" style="margin-top:14px">
+    <div id="drop">拖曳 <b>.gcsv</b> 到這裡，或點此選檔
+      <input id="file" type="file" accept=".gcsv,.csv,.txt" style="display:none">
+      <div class="toolbar" style="justify-content:center;margin-top:12px" onclick="event.stopPropagation()">
+        <span class="hint">沒有真實檔？產生測試資料驗證工具：</span>
+        <select id="demoSel">
+          <option value="YxZ">真值 YxZ (ICM 預設, det+1)</option>
+          <option value="xyz">真值 xyz (det-1)</option>
+          <option value="YXZ">真值 YXZ (QMI, det-1)</option>
+          <option value="Zyx">真值 Zyx</option>
+        </select>
+        <button id="demoBtn">產生並載入</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main" style="display:none">
+  <div class="row">
+    <div class="col" style="flex:2">
+      <div class="panel">
+        <h2>波形 — 角速度 (raw LSB)</h2>
+        <div class="legend" style="margin-bottom:6px">
+          <span><i class="swatch" style="background:var(--gx)"></i>gx (X)</span>
+          <span><i class="swatch" style="background:var(--gy)"></i>gy (Y)</span>
+          <span><i class="swatch" style="background:var(--gz)"></i>gz (Z)</span>
+          <span class="hint">— 拖曳框選一段，再按右側「指定給…」</span>
+        </div>
+        <canvas id="cv" height="340"></canvas>
+        <div class="hint" id="selinfo" style="margin-top:6px">尚未框選。</div>
+      </div>
+      <div class="panel">
+        <h2>檔案資訊</h2>
+        <div class="kv" id="fileinfo"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel" id="result">
+        <h2>建議結果</h2>
+        <div style="margin:6px 0 12px">
+          <span class="mono mut" id="curStr">—</span>
+          <span class="arrow">→</span>
+          <span class="mono big" id="sugStr">—</span>
+          <button id="copyBtn" style="margin-left:10px">複製</button>
+        </div>
+        <table id="motab">
+          <thead><tr><th>動作</th><th>主軸</th><th>outbound 積分 S</th><th>→ char</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="detinfo" style="margin-top:10px"></div>
+        <div class="warnbox" id="warns"></div>
+      </div>
+
+      <div class="panel">
+        <h2>框選指定（假設方向：pitch 上 / yaw 左 / roll 右）</h2>
+        <div id="slots"></div>
+        <div class="hint">框選整段「轉→回」即可，工具自動抓 outbound（第一個同號 lobe）。實際轉相反方向就勾「反向」。</div>
+      </div>
+
+      <div class="panel">
+        <h2>錄製提示</h2>
+        <ul class="tips">
+          <li>三動作之間 <b>停 ~1 秒靜止</b>，方便框選。</li>
+          <li>每動作平順轉 <b>~90°</b> → 短暫 hold → 轉回原位。</li>
+          <li>方向：pitch <b>向上</b>、yaw <b>向左</b>、roll <b>向右</b>（依 Gyroflow 標準）。</li>
+          <li>三軸需各當一次主軸；若重複代表動作不乾淨或感測器裝斜。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+//============================================================================
+// 約定（鎖定，來源：gsensor_eis.c 解析 + Gyroflow 標準座標 +X上/+Y左/+Z後）
+//   orientation 字串 3 字元，位置 0=Yaw 1=Pitch 2=Roll
+//   字母 X/Y/Z 選 raw 軸 gx/gy/gz；大寫=+1 小寫=-1
+//   套用：out[i] = sign_i * raw[axis_i]
+//   使用者動作對標準座標的要求：
+//     yaw 左  -> out[0] > 0
+//     pitch 上 -> out[1] < 0
+//     roll 右 -> out[2] > 0   （實機修正 2026-06-03：原假設 <0 錯，roll 一律要反向才對）
+//   sign_i = 要求符號 × sign(S)，S = 主軸 outbound 帶號積分
+//     yaw : 大寫 if S>0
+//     pitch: 大寫 if S<0
+//     roll : 大寫 if S>0
+//============================================================================
+
+const SLOT_DEF = [
+  {key:'yaw',   name:'Yaw ← (向左)',  reqPos:true },  // 大寫 if S>0
+  {key:'pitch', name:'Pitch ↑ (向上)', reqPos:false},  // 大寫 if S<0
+  {key:'roll',  name:'Roll → (向右)',  reqPos:true },  // 大寫 if S>0（實機修正：roll右→out[2]>0）
+];
+const AXIS_LETTER = ['X','Y','Z'];        // raw 欄位 gx,gy,gz -> X,Y,Z
+const AXIS_COLOR  = ['var(--gx)','var(--gy)','var(--gz)'];
+const AXIS_HEX    = ['#ff5d62','#46d27e','#5aa9ff'];
+
+let DATA = null;   // {n, t:[], g:[[],[],[]], header:{}, chip}
+let motions = { yaw:null, pitch:null, roll:null };  // 每個 = {a,b,reverse, axis,Ssign,i0,i1}
+let pending = null; // {a,b} 框選但未指定
+let armed = null;   // 目前 armed 的 slot key（點 assign 後等框選；本版用「先框再按」流程，armed 不必要但保留）
+
+//---------------------------------------------------------------- gcsv 解析
+function parseGcsv(text){
+  const lines = text.split(/\r?\n/);
+  const header = {};
+  let dataStart = -1, cols = null;
+  for(let i=0;i<lines.length;i++){
+    const ln = lines[i].trim();
+    if(!ln) continue;
+    // 資料表頭：t,gx,gy,gz,...
+    if(/^t\s*,/.test(ln) && /gx/.test(ln)){
+      cols = ln.split(',').map(s=>s.trim());
+      dataStart = i+1; break;
+    }
+    const c = ln.indexOf(',');
+    if(c>0){
+      const k = ln.slice(0,c).trim().toLowerCase();
+      const v = ln.slice(c+1).trim();
+      header[k]=v;
+    }
+  }
+  if(dataStart<0) throw new Error("找不到資料表頭 (t,gx,gy,gz,...)；這是 Gyroflow gcsv 嗎？");
+  const ix = name=>cols.indexOf(name);
+  const it=ix('t'), igx=ix('gx'), igy=ix('gy'), igz=ix('gz');
+  if(igx<0||igy<0||igz<0) throw new Error("資料欄缺 gx/gy/gz");
+  const t=[], g=[[],[],[]];
+  for(let i=dataStart;i<lines.length;i++){
+    const ln=lines[i].trim(); if(!ln) continue;
+    const p=ln.split(',');
+    if(p.length<=Math.max(igx,igy,igz)) continue;
+    const tv = it>=0? parseFloat(p[it]) : (t.length);
+    const x=parseFloat(p[igx]), y=parseFloat(p[igy]), z=parseFloat(p[igz]);
+    if(!isFinite(x)||!isFinite(y)||!isFinite(z)) continue;
+    t.push(isFinite(tv)?tv:t.length);
+    g[0].push(x); g[1].push(y); g[2].push(z);
+  }
+  if(g[0].length<10) throw new Error("有效資料列太少 ("+g[0].length+")");
+  let chip = '?';
+  const id=(header['id']||'').toUpperCase();
+  if(id.includes('QMI')) chip='QMI8658B';
+  else if(id.includes('ICM')||id.includes('JL6580_CAMERA')) chip='ICM42607P';
+  return {n:g[0].length, t, g, header, chip};
+}
+
+//---------------------------------------------------------------- 動作分析
+// 給定 index 區間 [a,b]，找主軸 + outbound 帶號積分
+function analyzeMotion(a,b,reverse){
+  const g=DATA.g, t=DATA.t;
+  if(b<a){const tmp=a;a=b;b=tmp;}
+  // 主軸 = sum|raw| 最大（對「轉+回」也成立，因為用絕對值）
+  const absI=[0,0,0];
+  for(let k=0;k<3;k++) for(let i=a;i<=b;i++) absI[k]+=Math.abs(g[k][i]);
+  let d=0; if(absI[1]>absI[d])d=1; if(absI[2]>absI[d])d=2;
+  // peak + 門檻
+  let peak=0; for(let i=a;i<=b;i++) peak=Math.max(peak,Math.abs(g[d][i]));
+  const thr=Math.max(0.15*peak, 1e-9);
+  // outbound 起點：主軸首次越過門檻
+  let i0=a; while(i0<b && Math.abs(g[d][i0])<thr) i0++;
+  const s = Math.sign(g[d][i0]) || 1;
+  // outbound 終點：主軸首次反號越過門檻（= 回程開始）前一格
+  let i1=i0;
+  for(let i=i0+1;i<=b;i++){
+    if(Math.sign(g[d][i])===-s && Math.abs(g[d][i])>thr) break;
+    i1=i;
+  }
+  // 帶號積分（以 dt 加權；sign 才是重點）
+  let S=0;
+  for(let i=i0;i<=i1;i++){
+    let dt = i>0 ? (t[i]-t[i-1]) : 0;
+    if(!(dt>0)) dt=1;
+    S += g[d][i]*dt;
+  }
+  let Ssign = Math.sign(S) || s;
+  if(reverse) Ssign = -Ssign;
+  return {axis:d, Ssign, i0, i1, peak, absI, S};
+}
+
+function charForSlot(slotKey, axis, Ssign){
+  const L = AXIS_LETTER[axis];
+  const def = SLOT_DEF.find(s=>s.key===slotKey);
+  // 大寫條件：yaw -> S>0 ; pitch/roll -> S<0
+  const upper = def.reqPos ? (Ssign>0) : (Ssign<0);
+  return upper ? L : L.toLowerCase();
+}
+
+//---------------------------------------------------------------- 重算 + 顯示
+function recompute(){
+  // 逐動作分析
+  for(const def of SLOT_DEF){
+    const m=motions[def.key];
+    if(m){ const r=analyzeMotion(m.a,m.b,m.reverse); Object.assign(m,r); }
+  }
+  renderSlots();
+  renderResult();
+  render();
+}
+
+function renderResult(){
+  const tb=document.querySelector('#motab tbody'); tb.innerHTML='';
+  let chars={}, axesUsed=[];
+  for(const def of SLOT_DEF){
+    const m=motions[def.key];
+    const tr=document.createElement('tr');
+    if(m){
+      const ch=charForSlot(def.key,m.axis,m.Ssign);
+      chars[def.key]=ch; axesUsed.push(m.axis);
+      tr.innerHTML=`<td>${def.name}</td>
+        <td><span class="pill" style="border-color:${AXIS_HEX[m.axis]};color:${AXIS_HEX[m.axis]}">${['gx','gy','gz'][m.axis]} (${AXIS_LETTER[m.axis]})</span></td>
+        <td class="mono">${m.S>0?'+':''}${m.S.toExponential(2)} ${m.reverse?'<span class="warn">(反向)</span>':''}</td>
+        <td class="mono big" style="font-size:18px">${ch}</td>`;
+    }else{
+      tr.innerHTML=`<td>${def.name}</td><td class="mut">未指定</td><td class="mut">—</td><td class="mut">—</td>`;
+    }
+    tb.appendChild(tr);
+  }
+  const cur = DATA.header['orientation'] || '(header 無)';
+  document.getElementById('curStr').textContent = cur;
+
+  const sug = document.getElementById('sugStr');
+  const detbox = document.getElementById('detinfo');
+  const warns = document.getElementById('warns'); warns.innerHTML='';
+  const W=[];
+
+  if(chars.yaw && chars.pitch && chars.roll){
+    const str = chars.yaw+chars.pitch+chars.roll;
+    const same = (cur===str);
+    sug.textContent = str;
+    sug.className = 'mono big '+(same?'ok':'acc');
+    if(same) W.push(['ok','header 既有字串已等於建議值 — 無需修改。']);
+
+    // 唯一性
+    const uniq = new Set(axesUsed);
+    if(uniq.size<3) W.push(['err','三動作主軸有重複（'+axesUsed.map(a=>AXIS_LETTER[a]).join(',')+'）→ 動作不乾淨或感測器裝斜，結果不可信。重錄。']);
+
+    // det / chip-parity 已移除：det 非正確性閘門（Gyroflow 不檢查行列式，driver 也不再管），保留只會誤導。
+    detbox.innerHTML='';
+  }else{
+    sug.textContent='—'; sug.className='mono big mut';
+    detbox.innerHTML='<span class="mut">三個動作都指定後才會輸出。</span>';
+  }
+
+  for(const [cls,msg] of W){
+    const d=document.createElement('div'); d.className=cls; d.innerHTML='• '+msg; warns.appendChild(d);
+  }
+}
+
+function renderSlots(){
+  const host=document.getElementById('slots'); host.innerHTML='';
+  for(const def of SLOT_DEF){
+    const m=motions[def.key];
+    const div=document.createElement('div'); div.className='mslot';
+    const stat = m
+      ? `已選 index ${m.a}–${m.b}　主軸 <b style="color:${AXIS_HEX[m.axis]}">${['gx','gy','gz'][m.axis]}</b>　outbound ${m.i0}–${m.i1}`
+      : '尚未指定';
+    div.innerHTML=`
+      <div class="hd"><span class="nm">${def.name}</span>
+        <label><input type="checkbox" ${m&&m.reverse?'checked':''} data-rev="${def.key}"> 我轉的是反向</label>
+      </div>
+      <div class="st">${stat}</div>
+      <button class="assign ${armed===def.key?'armed':''}" data-assign="${def.key}">
+        ${m?'重新指定目前框選給此動作':'指定目前框選給此動作'}</button>`;
+    host.appendChild(div);
+  }
+  host.querySelectorAll('[data-assign]').forEach(b=>b.onclick=()=>{
+    const key=b.getAttribute('data-assign');
+    if(!pending){ alert('請先在波形上拖曳框選一段，再按此按鈕。'); return; }
+    motions[key]={a:pending.a,b:pending.b,reverse: motions[key]?motions[key].reverse:false};
+    pending=null;
+    document.getElementById('selinfo').textContent='已指定。可再框選下一段。';
+    recompute();
+  });
+  host.querySelectorAll('[data-rev]').forEach(c=>c.onchange=()=>{
+    const key=c.getAttribute('data-rev');
+    if(motions[key]){ motions[key].reverse=c.checked; recompute(); }
+  });
+}
+
+//---------------------------------------------------------------- canvas 繪製
+const cv=document.getElementById('cv'); const ctx=cv.getContext('2d');
+const PAD={l:46,r:12,t:12,b:22};
+let plot={x:0,y:0,w:0,h:0,maxAbs:1};
+
+function resizeCanvas(){
+  const dpr=window.devicePixelRatio||1;
+  // fallback：display:none→'' 切換時 clientW/H 可能尚未 reflow 讀到 0；
+  // 若把 cv.height 設成 0，canvas 會永久塌成 0 高。用 parent 寬與固定 340 兜底。
+  const cssW=cv.clientWidth || (cv.parentElement&&cv.parentElement.clientWidth) || 800;
+  const cssH=cv.clientHeight || 340;
+  cv.width=cssW*dpr; cv.height=cssH*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(DATA) render();
+}
+window.addEventListener('resize',resizeCanvas);
+
+function idxToX(i){ return plot.x + (DATA.n>1? i/(DATA.n-1):0)*plot.w; }
+function xToIdx(px){ let f=(px-plot.x)/plot.w; f=Math.max(0,Math.min(1,f)); return Math.round(f*(DATA.n-1)); }
+function valToY(v){ return plot.y + plot.h/2 - (v/plot.maxAbs)*(plot.h/2)*0.92; }
+
+function render(){
+  if(!DATA) return;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  plot.x=PAD.l; plot.y=PAD.t; plot.w=W-PAD.l-PAD.r; plot.h=H-PAD.t-PAD.b;
+  let mx=1; for(let k=0;k<3;k++)for(let i=0;i<DATA.n;i++)mx=Math.max(mx,Math.abs(DATA.g[k][i]));
+  plot.maxAbs=mx;
+  ctx.clearRect(0,0,W,H);
+
+  // grid + 零線
+  ctx.strokeStyle='#1d2738'; ctx.lineWidth=1;
+  ctx.strokeRect(plot.x,plot.y,plot.w,plot.h);
+  ctx.beginPath(); const yz=valToY(0); ctx.moveTo(plot.x,yz); ctx.lineTo(plot.x+plot.w,yz); ctx.stroke();
+  ctx.fillStyle='#6b7d99'; ctx.font='11px monospace';
+  ctx.fillText('0',6,yz+3);
+  ctx.fillText('+'+Math.round(mx),4,valToY(mx*0.92)+3);
+  ctx.fillText('-'+Math.round(mx),4,valToY(-mx*0.92)+3);
+
+  // 已指定動作區段（半透明 + outbound 加深）
+  for(const def of SLOT_DEF){
+    const m=motions[def.key]; if(!m) continue;
+    const x0=idxToX(m.a), x1=idxToX(m.b);
+    ctx.fillStyle='rgba(120,150,200,0.08)';
+    ctx.fillRect(x0,plot.y,x1-x0,plot.h);
+    if(m.i0!=null){
+      const o0=idxToX(m.i0), o1=idxToX(m.i1);
+      ctx.fillStyle='rgba(77,163,255,0.18)';
+      ctx.fillRect(o0,plot.y,o1-o0,plot.h);
+    }
+    ctx.fillStyle='#9fb3d1'; ctx.font='11px sans-serif';
+    ctx.fillText(def.key, x0+3, plot.y+12);
+  }
+  // pending 框選
+  if(pending){
+    const x0=idxToX(pending.a), x1=idxToX(pending.b);
+    ctx.fillStyle='rgba(57,217,138,0.14)';
+    ctx.fillRect(Math.min(x0,x1),plot.y,Math.abs(x1-x0),plot.h);
+    ctx.strokeStyle='rgba(57,217,138,0.7)'; ctx.strokeRect(Math.min(x0,x1),plot.y,Math.abs(x1-x0),plot.h);
+  }
+
+  // 三軸波形
+  for(let k=0;k<3;k++){
+    ctx.strokeStyle=AXIS_HEX[k]; ctx.lineWidth=1.2; ctx.beginPath();
+    for(let i=0;i<DATA.n;i++){
+      const x=idxToX(i), y=valToY(DATA.g[k][i]);
+      if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+// 滑鼠框選
+let dragging=false, dragStart=0;
+cv.addEventListener('mousedown',e=>{
+  if(!DATA)return; dragging=true;
+  const r=cv.getBoundingClientRect(); dragStart=xToIdx(e.clientX-r.left);
+  pending={a:dragStart,b:dragStart}; render();
+});
+cv.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  const r=cv.getBoundingClientRect(); const i=xToIdx(e.clientX-r.left);
+  pending={a:Math.min(dragStart,i),b:Math.max(dragStart,i)}; render();
+  document.getElementById('selinfo').textContent=`框選 index ${pending.a}–${pending.b}（${pending.b-pending.a+1} 點）→ 按右側「指定給…」。`;
+});
+window.addEventListener('mouseup',()=>{ dragging=false; });
+
+//---------------------------------------------------------------- 載入
+function loadText(text, fname){
+  try{
+    DATA=parseGcsv(text);
+    motions={yaw:null,pitch:null,roll:null}; pending=null;
+    document.getElementById('main').style.display='';
+    const h=DATA.header;
+    const dur = DATA.n>1 ? ((DATA.t[DATA.n-1]-DATA.t[0]) * parseFloat(h['tscale']||'0.000001')) : 0;
+    document.getElementById('fileinfo').innerHTML=`
+      <b>檔名</b><span class="mono">${fname||'(demo)'}</span>
+      <b>chip</b><span>${DATA.chip} <span class="mut">(id=${h['id']||'?'})</span></span>
+      <b>header orientation</b><span class="mono acc">${h['orientation']||'(無)'}</span>
+      <b>version</b><span class="mono">${h['version']||'?'}</span>
+      <b>gscale</b><span class="mono">${h['gscale']||'?'}</span>
+      <b>tscale</b><span class="mono">${h['tscale']||'?'}</span>
+      <b>樣本數</b><span>${DATA.n}　<span class="mut">時長 ~${dur.toFixed(2)}s</span></span>`;
+    resizeCanvas(); recompute();
+    // #main 由 display:none 切出後，layout 可能要下一幀才穩；再量一次重繪保險。
+    requestAnimationFrame(()=>{ resizeCanvas(); });
+  }catch(err){
+    alert('解析失敗：'+err.message);
+  }
+}
+
+const drop=document.getElementById('drop'), fileInput=document.getElementById('file');
+drop.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const rd=new FileReader(); rd.onload=()=>loadText(rd.result,f.name); rd.readAsText(f);
+});
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hot');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot');}));
+drop.addEventListener('drop',e=>{
+  const f=e.dataTransfer.files[0]; if(!f)return;
+  const rd=new FileReader(); rd.onload=()=>loadText(rd.result,f.name); rd.readAsText(f);
+});
+
+document.getElementById('copyBtn').onclick=()=>{
+  const s=document.getElementById('sugStr').textContent;
+  if(s&&s!=='—') navigator.clipboard?.writeText(s).then(()=>{
+    const b=document.getElementById('copyBtn'); b.textContent='已複製'; setTimeout(()=>b.textContent='複製',1200);
+  });
+};
+
+//---------------------------------------------------------------- 測試資料產生
+// 依 true orientation 反推 raw：out[i]=sign_i*raw[axis_i] => raw[axis_i]=sign_i*out[i]
+// out 為標準座標角速度(rad/s)，三動作依序：yaw左(out0:+lobe→-lobe)、pitch上(out1:-→+)、roll右(out2:+→-)
+function genDemo(trueStr){
+  const GS=0.00013328; // ICM 250dps rad/s per LSB
+  const dtus=2500;     // 400Hz
+  const A=1.2;         // rad/s 峰值
+  const t=[], g=[[],[],[]];
+  let tt=0, idx=0;
+  // 解析 trueStr -> axis_i, sign_i
+  const axis=[], sgn=[];
+  for(let i=0;i<3;i++){const c=trueStr[i]; sgn[i]=(c>='A'&&c<='Z')?1:-1; axis[i]=c.toUpperCase().charCodeAt(0)-88;}
+  function push(out){ // out[3] rad/s -> raw LSB
+    const raw=[0,0,0];
+    for(let i=0;i<3;i++){ raw[axis[i]] = sgn[i]*out[i]/GS; }
+    t.push(tt); for(let k=0;k<3;k++) g[k].push(Math.round(raw[k] + (Math.random()-0.5)*40));
+    tt+=dtus;
+  }
+  const STILL=120, RAMP=80; // 樣本數
+  function still(n){ for(let i=0;i<n;i++) push([0,0,0]); }
+  // motion: 在 out 的某個 slot 放 +lobe 然後 -lobe（轉去再轉回）。dir = 該動作標準要求方向
+  // yaw左 out0 outbound +；pitch上 out1 outbound -；roll右 out2 outbound +
+  function motion(slot, outboundPositive){
+    const sgnOut = outboundPositive? +1 : -1;
+    for(let half=0; half<2; half++){
+      const dir = half===0? sgnOut : -sgnOut; // 先 outbound 再回程
+      for(let i=0;i<RAMP;i++){
+        const w=Math.sin(Math.PI*i/RAMP); // 0..1..0 半正弦
+        const out=[0,0,0]; out[slot]=dir*A*w; push(out);
+      }
+    }
+  }
+  still(STILL);
+  motion(0, true);   still(STILL);  // yaw 左：out0 outbound +
+  motion(1, false);  still(STILL);  // pitch 上：out1 outbound -
+  motion(2, true);   still(STILL);  // roll 右：out2 outbound +（與 SLOT_DEF roll reqPos:true 一致）
+  // 組 gcsv 文字
+  let s='GYROFLOW IMU LOG\r\nversion,1.3\r\nid,JL6580_Camera_DEMO\r\norientation,xyz\r\n';
+  s+='tscale,0.000001\r\ngscale,'+GS.toFixed(11)+'\r\nascale,0.00006103516\r\nt,gx,gy,gz,ax,ay,az\r\n';
+  for(let i=0;i<t.length;i++){
+    s+=`${t[i]},${g[0][i]},${g[1][i]},${g[2][i]},0,0,0\r\n`;
+  }
+  return s;
+}
+document.getElementById('demoBtn').onclick=()=>{
+  const v=document.getElementById('demoSel').value;
+  const txt=genDemo(v);
+  loadText(txt, 'demo_true_'+v+'.gcsv');
+  setTimeout(()=>alert('已載入測試資料（真值 '+v+'，header 故意寫成 xyz）。\n框選三段（yaw/pitch/roll 任意順序皆可，依波形）後，建議結果應 = '+v+'。'),50);
+};
+</script>
+</body>
+</html>
