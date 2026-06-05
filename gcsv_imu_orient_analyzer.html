@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#0a0a0f; --panel:#12121a; --panel2:#1c1c2e; --line:#2a2a3a;
-    --txt:#e0e0e0; --mut:#6b7280; --acc:#00ff88; --acc2:#ff00ff; --acc3:#00d4ff;
+    --txt:#f0f1f7; --mut:#9aa6c0; --acc:#00ff88; --acc2:#ff00ff; --acc3:#00d4ff;
     --ok:#00ff88; --warn:#ffb454; --err:#ff3366;
     --gx:#ff00ff; --gy:#00ff88; --gz:#00d4ff;
     --mono:"Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
@@ -15,7 +15,7 @@
   }
   *,*::before,*::after{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
-       font:14px/1.55 var(--mono);position:relative;min-height:100vh;overflow-x:hidden}
+       font:16px/1.6 var(--mono);position:relative;min-height:100vh;overflow-x:hidden}
 
   /* 電路網格背景 */
   body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -34,10 +34,10 @@
 
   .wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:18px}
 
-  h1{font-size:22px;margin:0 0 4px;letter-spacing:.16em;text-transform:uppercase;
+  h1{font-size:28px;margin:0 0 6px;letter-spacing:.14em;text-transform:uppercase;
      color:var(--acc);text-shadow:0 0 10px rgba(0,255,136,.6),-1px 0 rgba(255,0,255,.45),1px 0 rgba(0,212,255,.45)}
-  h2{font-size:12px;margin:0 0 10px;color:var(--acc3);font-weight:700;
-     letter-spacing:.22em;text-transform:uppercase}
+  h2{font-size:14px;margin:0 0 10px;color:var(--acc3);font-weight:700;
+     letter-spacing:.12em;text-transform:uppercase}
   h2::before{content:'// ';color:var(--mut)}
 
   .row{display:flex;gap:14px;flex-wrap:wrap}
@@ -52,47 +52,47 @@
         transition:.15s;cursor:pointer;background:rgba(18,18,26,.5);
         clip-path:polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px))}
   #drop.hot{border-color:var(--acc);color:var(--txt);background:#0e1f17;box-shadow:inset 0 0 24px rgba(0,255,136,.15)}
-  #drop b{color:var(--acc);text-shadow:var(--glow)}
+  #drop b{color:var(--acc);font-weight:700}
 
   canvas{width:100%;height:340px;display:block;background:#07090e;border-radius:2px;border:1px solid var(--line);cursor:crosshair}
 
   table{border-collapse:collapse;width:100%;font-size:13px}
-  td,th{border:1px solid var(--line);padding:5px 8px;text-align:left}
-  th{color:var(--acc3);font-weight:700;background:var(--panel2);text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+  td,th{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  th{color:var(--acc3);font-weight:700;background:var(--panel2);text-transform:uppercase;letter-spacing:.06em;font-size:13px}
 
-  .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px}
-  .kv b{color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+  .kv b{color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:13px}
   .mono{font-family:var(--mono)}
 
   button{background:transparent;color:var(--acc);border:1px solid var(--acc);border-radius:0;
-         padding:7px 12px;cursor:pointer;font-size:12px;font-family:var(--mono);
-         text-transform:uppercase;letter-spacing:.12em;transition:all .15s}
+         padding:8px 14px;cursor:pointer;font-size:14px;font-family:var(--mono);
+         text-transform:uppercase;letter-spacing:.1em;transition:all .15s}
   button:hover{background:var(--acc);color:var(--bg);box-shadow:var(--glow)}
   button.assign{width:100%;text-align:left;border-color:var(--line);color:var(--txt);text-transform:none;letter-spacing:.02em}
   button.assign:hover{border-color:var(--acc);background:transparent;color:var(--acc);box-shadow:none}
   button.assign.armed{border-color:var(--acc);background:#0e1f17;color:var(--acc)}
 
-  .pill{display:inline-block;padding:1px 8px;border-radius:0;font-size:12px;border:1px solid var(--line)}
-  .legend span{display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:12px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:0;font-size:13px;border:1px solid var(--line)}
+  .legend span{display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:14px}
   .swatch{width:12px;height:12px;border-radius:0;display:inline-block}
 
   .mslot{border:1px solid var(--line);border-radius:2px;padding:10px;margin-bottom:10px;background:rgba(28,28,46,.5)}
   .mslot .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
   .mslot .hd .nm{font-weight:700;color:var(--txt)}
-  .mslot .st{font-size:12px;color:var(--mut);min-height:18px}
-  .mslot label{font-size:12px;color:var(--mut);user-select:none}
+  .mslot .st{font-size:14px;color:var(--mut);min-height:18px}
+  .mslot label{font-size:14px;color:var(--mut);user-select:none}
 
   #result .big{font-size:30px;font-weight:700;letter-spacing:3px}
   #result .arrow{color:var(--mut);margin:0 10px}
 
   .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)} .acc{color:var(--acc)} .mut{color:var(--mut)}
   .big.acc,.big.ok{text-shadow:0 0 10px rgba(0,255,136,.6)}
-  .hint{font-size:12px;color:var(--mut)}
-  ul.tips{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--mut)}
+  .hint{font-size:14px;color:var(--mut)}
+  ul.tips{margin:6px 0 0;padding-left:18px;font-size:14px;color:var(--mut)}
   ul.tips li{margin:2px 0}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   select{background:var(--panel2);color:var(--acc);border:1px solid var(--line);border-radius:0;
-         padding:6px;font-family:var(--mono);font-size:12px}
+         padding:7px;font-family:var(--mono);font-size:14px}
   select:focus{outline:none;border-color:var(--acc);box-shadow:var(--glow)}
   .warnbox{margin-top:8px}
   .warnbox div{padding:3px 0}
@@ -424,7 +424,7 @@ function render(){
   ctx.strokeStyle='#2a2a3a'; ctx.lineWidth=1;
   ctx.strokeRect(plot.x,plot.y,plot.w,plot.h);
   ctx.beginPath(); const yz=valToY(0); ctx.moveTo(plot.x,yz); ctx.lineTo(plot.x+plot.w,yz); ctx.stroke();
-  ctx.fillStyle='#6b7280'; ctx.font='11px monospace';
+  ctx.fillStyle='#9aa6c0'; ctx.font='12px monospace';
   ctx.fillText('0',6,yz+3);
   ctx.fillText('+'+Math.round(mx),4,valToY(mx*0.92)+3);
   ctx.fillText('-'+Math.round(mx),4,valToY(-mx*0.92)+3);
@@ -440,7 +440,7 @@ function render(){
       ctx.fillStyle='rgba(0,212,255,0.18)';
       ctx.fillRect(o0,plot.y,o1-o0,plot.h);
     }
-    ctx.fillStyle='#8a8aa0'; ctx.font='11px monospace';
+    ctx.fillStyle='#9aa6c0'; ctx.font='12px monospace';
     ctx.fillText(def.key, x0+3, plot.y+12);
   }
   // pending 框選
