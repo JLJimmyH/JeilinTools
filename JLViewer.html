@@ -990,13 +990,17 @@
 
   // Shared YUYV/UYVY → RGBA decoder. payload starts at first pixel byte.
   // opts.byteOrder 'YUYV'(default)|'UYVY'; opts.range 'limited'(default,BT.601)|'full'.
+  // opts.uvSigned (default true): JL firmware stores Cb/Cr signed → XOR 0x80 to unsigned
+  //   (neutral 0→128, ref jl_tools.cpp / parseYUV fixUV).
   // Returns { rgba, pY, pU, pV } — planes are full-res for channel isolation.
   function decodeJYUV(payload, w, h, opts) {
     const order = (opts && opts.byteOrder) || 'YUYV';
     const range = (opts && opts.range) || 'limited';
+    const uvSigned = (opts && opts.uvSigned !== undefined) ? opts.uvSigned : true;
     const rgba = new Uint8ClampedArray(w * h * 4);
     const pY = new Uint8Array(w * h), pU = new Uint8Array(w * h), pV = new Uint8Array(w * h);
     const stride = w * 2; // bytes per row, no padding
+    const fixUV = (val) => uvSigned ? (val ^ 0x80) : val;
     function toRgb(y, u, v) {
       if (range === 'full') {
         const d = u - 128, e = v - 128;
@@ -1023,6 +1027,7 @@
         } else {
           y0 = payload[base] || 0; u = payload[base + 1] || 0; y1 = payload[base + 2] || 0; v = payload[base + 3] || 0;
         }
+        u = fixUV(u); v = fixUV(v); // signed → unsigned (0..255), neutral 128
         const pix = row * w + col;
         const [r0, g0, b0] = toRgb(y0, u, v);
         let idx = pix * 4;
