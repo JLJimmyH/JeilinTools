@@ -592,6 +592,20 @@
         </div>
       </div>
 
+      <div class="panel-section" id="section-jyuv" style="display:none">
+        <div class="panel-title">JYUV 參數</div>
+        <div class="panel-body">
+          <div class="panel-row"><span class="label-text">色彩範圍</span><select class="ctrl-select" id="jyuv-range">
+            <option value="limited" selected>Limited (16-235)</option>
+            <option value="full">Full (0-255)</option>
+          </select></div>
+          <div class="panel-row"><span class="label-text">位元組順序</span><select class="ctrl-select" id="jyuv-order">
+            <option value="YUYV" selected>YUYV (Y0 U Y1 V)</option>
+            <option value="UYVY">UYVY (U Y0 V Y1)</option>
+          </select></div>
+        </div>
+      </div>
+
       <div class="panel-section" id="section-raw" style="display:none">
         <div class="panel-title">RAW 像素格式</div>
         <div class="panel-body">
@@ -804,7 +818,7 @@
   const bgStyleSelect = document.getElementById('bg-style');
 
   // ── State ─────────────────────────────────────────────────────
-  let currentFormat = null; // 'jr2' | 'argb' | 'png' | 'yuv' | 'raw'
+  let currentFormat = null; // 'jr2' | 'jyuv' | 'argb' | 'png' | 'yuv' | 'raw'
   let fileName = '';
 
   // 通道隔離 (單圖模式)
@@ -836,6 +850,12 @@
   const yuvBitdepthSelect = document.getElementById('yuv-bitdepth');
   const yuvUvSignedCheckbox = document.getElementById('yuv-uv-signed');
   const rawPixfmtSelect = document.getElementById('raw-pixfmt');
+
+  // JYUV state (.JR2 container, YUV422 packed variant)
+  let jyuvArrayBuffer = null;
+  let jyuvModel = '';
+  const jyuvRangeSelect = document.getElementById('jyuv-range');
+  const jyuvOrderSelect = document.getElementById('jyuv-order');
 
   // Pan/zoom state
   let scale = 1, panX = 0, panY = 0;
@@ -907,8 +927,15 @@
     reader.onload = (e) => {
       const buf = new Uint8Array(e.target.result);
       if (ext.endsWith('.jr2')) {
-        currentFormat = 'jr2';
-        parseJR2(buf);
+        const mg = buf.length >= 4 ? String.fromCharCode(buf[0], buf[1], buf[2], buf[3]) : '';
+        if (mg === 'JYUV') {
+          currentFormat = 'jyuv';
+          jyuvArrayBuffer = e.target.result;
+          parseJYUV(buf);
+        } else {
+          currentFormat = 'jr2';
+          parseJR2(buf);
+        }
       } else if (isYUVExtension(ext)) {
         currentFormat = 'yuv';
         yuvRawArrayBuffer = e.target.result;
@@ -957,6 +984,85 @@
     rawData = buf.slice(32, 32 + imgWidth * imgHeight);
     infoEl.textContent = `${fileName} | ${modelStr} | ${imgWidth}×${imgHeight} | ${formatFileSize(buf.length)}`;
     render();
+  }
+
+  // ── JYUV parsing (.JR2 container, YUV422 packed variant) ──────
+
+  // Shared YUYV/UYVY → RGBA decoder. payload starts at first pixel byte.
+  // opts.byteOrder 'YUYV'(default)|'UYVY'; opts.range 'limited'(default,BT.601)|'full'.
+  // Returns { rgba, pY, pU, pV } — planes are full-res for channel isolation.
+  function decodeJYUV(payload, w, h, opts) {
+    const order = (opts && opts.byteOrder) || 'YUYV';
+    const range = (opts && opts.range) || 'limited';
+    const rgba = new Uint8ClampedArray(w * h * 4);
+    const pY = new Uint8Array(w * h), pU = new Uint8Array(w * h), pV = new Uint8Array(w * h);
+    const stride = w * 2; // bytes per row, no padding
+    function toRgb(y, u, v) {
+      if (range === 'full') {
+        const d = u - 128, e = v - 128;
+        return [
+          Math.max(0, Math.min(255, (y + 1.402 * e) | 0)),
+          Math.max(0, Math.min(255, (y - 0.344 * d - 0.714 * e) | 0)),
+          Math.max(0, Math.min(255, (y + 1.772 * d) | 0))
+        ];
+      }
+      // limited-range BT.601 (integer 1.164/1.596/2.018 ×256 = 298/409/516)
+      const c = y - 16, d = u - 128, e = v - 128;
+      return [
+        Math.max(0, Math.min(255, (298 * c + 409 * e + 128) >> 8)),
+        Math.max(0, Math.min(255, (298 * c - 100 * d - 208 * e + 128) >> 8)),
+        Math.max(0, Math.min(255, (298 * c + 516 * d + 128) >> 8))
+      ];
+    }
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col += 2) {
+        const base = row * stride + col * 2; // 4 bytes = 2 pixels
+        let y0, u, y1, v;
+        if (order === 'UYVY') {
+          u = payload[base] || 0; y0 = payload[base + 1] || 0; v = payload[base + 2] || 0; y1 = payload[base + 3] || 0;
+        } else {
+          y0 = payload[base] || 0; u = payload[base + 1] || 0; y1 = payload[base + 2] || 0; v = payload[base + 3] || 0;
+        }
+        const pix = row * w + col;
+        const [r0, g0, b0] = toRgb(y0, u, v);
+        let idx = pix * 4;
+        rgba[idx] = r0; rgba[idx + 1] = g0; rgba[idx + 2] = b0; rgba[idx + 3] = 255;
+        pY[pix] = y0; pU[pix] = u; pV[pix] = v;
+        if (col + 1 < w) {
+          const [r1, g1, b1] = toRgb(y1, u, v);
+          idx += 4;
+          rgba[idx] = r1; rgba[idx + 1] = g1; rgba[idx + 2] = b1; rgba[idx + 3] = 255;
+          pY[pix + 1] = y1; pU[pix + 1] = u; pV[pix + 1] = v;
+        }
+      }
+    }
+    return { rgba, pY, pU, pV };
+  }
+
+  function parseJYUV(buf) {
+    if (buf.length < 32) { alert('檔案太小，不是有效的 JYUV 檔案'); return; }
+    const magic = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
+    if (magic !== 'JYUV') { alert('無效的 JYUV 檔案 (magic: ' + magic + ')'); return; }
+
+    jyuvModel = String.fromCharCode(...buf.slice(4, 12)).replace(/\0+$/, '');
+    imgHeight = (buf[12] << 8) | buf[13];  // BIG-ENDIAN
+    imgWidth  = (buf[14] << 8) | buf[15];  // BIG-ENDIAN, width AFTER height
+
+    const expectedSize = 32 + imgWidth * 2 * imgHeight;
+    if (buf.length !== expectedSize) {
+      console.warn(`JYUV 大小不符: 預期 ${expectedSize} bytes, 實際 ${buf.length} bytes (仍嘗試解碼)`);
+    }
+
+    const { rgba, pY, pU, pV } = decodeJYUV(buf.subarray(32), imgWidth, imgHeight, {
+      byteOrder: jyuvOrderSelect.value,
+      range: jyuvRangeSelect.value
+    });
+
+    channelFamily = 'yuv';
+    channelPlaneY = pY; channelPlaneU = pU; channelPlaneV = pV;
+    argbImageData = rgba; argbWidth = imgWidth; argbHeight = imgHeight;
+    infoEl.textContent = `${fileName} | JYUV ${jyuvModel} | ${imgWidth}×${imgHeight} | ${formatFileSize(buf.length)}`;
+    renderARGB();
   }
 
   // ── JR2 rendering ─────────────────────────────────────────────
@@ -2012,6 +2118,7 @@
 
   function updateUIForFormat() {
     const isJR2 = currentFormat === 'jr2';
+    const isJYUV = currentFormat === 'jyuv';
     const isARGB = currentFormat === 'argb';
     const isPNG = currentFormat === 'png';
     const isYUV = currentFormat === 'yuv';
@@ -2019,6 +2126,7 @@
 
     document.getElementById('section-jr2').style.display = isJR2 ? '' : 'none';
     document.getElementById('section-yuv').style.display = isYUV ? '' : 'none';
+    document.getElementById('section-jyuv').style.display = isJYUV ? '' : 'none';
     document.getElementById('section-raw').style.display = isRAW ? '' : 'none';
 
     updateChannelPanel();
@@ -2051,6 +2159,12 @@
         rows.push(SEP);
         rows.push(R('保留位元', `<span style="font-family:monospace;font-size:11px">${jr2HeaderReserved}</span>`));
       }
+    } else if (isJYUV) {
+      rows.push(HDR('JYUV (YUV422)'));
+      rows.push(R('型號', jyuvModel));
+      rows.push(R('解析度', `${argbWidth}×${argbHeight}`));
+      rows.push(R('色彩範圍', jyuvRangeSelect.value === 'full' ? 'Full (0-255)' : 'Limited (16-235)'));
+      rows.push(R('位元組順序', jyuvOrderSelect.value));
     } else if (isYUV) {
       rows.push(HDR('YUV'));
       rows.push(R('格式', yuvFormatSelect.value));
@@ -2259,7 +2373,7 @@
     else if (currentFormat === 'raw' && yuvRawArrayBuffer) { parseRAW(yuvRawArrayBuffer); fitToWindow(); }
   });
   bgStyleSelect.addEventListener('change', () => {
-    if (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw') renderARGB();
+    if (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw' || currentFormat === 'jyuv') renderARGB();
   });
 
   // YUV controls — auto-apply on change
@@ -2269,6 +2383,13 @@
   yuvFormatSelect.addEventListener('change', yuvAutoApply);
   yuvBitdepthSelect.addEventListener('change', yuvAutoApply);
   yuvUvSignedCheckbox.addEventListener('change', yuvAutoApply);
+
+  // JYUV controls — auto-apply on change
+  function jyuvAutoApply() {
+    if (currentFormat === 'jyuv' && jyuvArrayBuffer) { parseJYUV(new Uint8Array(jyuvArrayBuffer)); updateUIForFormat(); fitToWindow(); }
+  }
+  jyuvRangeSelect.addEventListener('change', jyuvAutoApply);
+  jyuvOrderSelect.addEventListener('change', jyuvAutoApply);
 
   // RAW controls — auto-apply on change
   rawPixfmtSelect.addEventListener('change', () => {
@@ -2658,8 +2779,17 @@
 
     if (fmt === 'jr2') {
       const u8 = new Uint8Array(arrayBuffer);
-      if (u8.length < 32 || String.fromCharCode(u8[0],u8[1],u8[2],u8[3]) !== 'JRAW') return null;
+      if (u8.length < 32) return null;
+      const mg = String.fromCharCode(u8[0],u8[1],u8[2],u8[3]);
       const srcH = (u8[12] << 8) | u8[13], srcW = (u8[14] << 8) | u8[15];
+      if (mg === 'JYUV') {
+        const { rgba } = decodeJYUV(u8.subarray(32), srcW, srcH, {
+          byteOrder: (params && params.jyuvOrder) || 'YUYV',
+          range: (params && params.jyuvRange) || 'limited'
+        });
+        return { rgba, width: srcW, height: srcH, format: 'jr2', srcW, srcH };
+      }
+      if (mg !== 'JRAW') return null;
       const rawPixels = u8.slice(32, 32 + srcW * srcH);
       return { ...renderJR2Pure(rawPixels, srcW, srcH, params), format: 'jr2', srcW, srcH };
     }
@@ -2704,9 +2834,12 @@
     }
     if (ext.endsWith('.jr2')) {
       const u8 = new Uint8Array(arrayBuffer);
-      if (u8.length >= 32 && String.fromCharCode(u8[0],u8[1],u8[2],u8[3]) === 'JRAW') {
-        meta.jr2Model = String.fromCharCode(...u8.slice(4, 12)).replace(/\0+$/, '');
-        meta.jr2Reserved = Array.from(u8.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      if (u8.length >= 32) {
+        const mg = String.fromCharCode(u8[0],u8[1],u8[2],u8[3]);
+        if (mg === 'JRAW' || mg === 'JYUV') {
+          meta.jr2Model = String.fromCharCode(...u8.slice(4, 12)).replace(/\0+$/, '');
+          meta.jr2Reserved = Array.from(u8.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        }
       }
     }
     return meta;
