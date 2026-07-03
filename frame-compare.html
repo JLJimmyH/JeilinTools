@@ -968,15 +968,25 @@ function renderDiffMode() {
     ctx.putImageData(out, 0, 0);
 }
 
+// 在指定面板內等比繪製（置中 letterbox），避免拉伸變形
+function drawFitted(ctx, vid, x, y, pw, ph) {
+    const vw = vid.videoWidth, vh = vid.videoHeight;
+    const sc = Math.min(pw / vw, ph / vh);
+    const dw = Math.round(vw * sc), dh = Math.round(vh * sc);
+    ctx.drawImage(vid, x + Math.round((pw - dw) / 2), y + Math.round((ph - dh) / 2), dw, dh);
+}
+
 // Render comparison to an arbitrary canvas (for export / screenshot)
 function renderToCanvas(ctx, w, h) {
     if (mode === 'sideBySide') {
         const gap = 4;
-        const pw = Math.floor((w - gap) / 2);
         ctx.fillStyle = '#30363d';
         ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(vidA, 0, 0, pw, h);
-        ctx.drawImage(vidB, pw + gap, 0, w - pw - gap, h);
+        // 依原始寬度比例分配面板：A/B 解析度不同時原本對半切會壓扁/拉寬
+        const availW = w - gap;
+        const pwA = Math.round(availW * vidA.videoWidth / (vidA.videoWidth + vidB.videoWidth));
+        drawFitted(ctx, vidA, 0, 0, pwA, h);
+        drawFitted(ctx, vidB, pwA + gap, 0, availW - pwA, h);
     } else if (mode === 'overlay') {
         const sx = Math.floor(w * ovPos);
         ctx.drawImage(vidA, 0, 0, w, h);
