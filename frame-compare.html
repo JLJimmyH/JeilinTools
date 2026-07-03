@@ -1324,7 +1324,8 @@ async function startExport() {
 
 // ======================== Keyboard ========================
 document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // 別攔瀏覽器快捷鍵
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (!vidA || !vidB || exporting) return;
     switch (e.key) {
         case 'ArrowLeft':  e.preventDefault(); if (playing) stopPlay(); seekTo(frame - 1); break;

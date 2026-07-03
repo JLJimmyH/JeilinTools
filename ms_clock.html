@@ -1334,7 +1334,8 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return; // 別攔 Ctrl+F 等瀏覽器快捷鍵
+            if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
             if (e.code === 'Space') {
                 e.preventDefault();
                 toggleClock();
