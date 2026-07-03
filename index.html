@@ -123,7 +123,7 @@
     -webkit-backdrop-filter: blur(8px);
     transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
     position: relative;
-    overflow: visible;
+    overflow: hidden; /* 長 kaomoji / 泰文疊字不可壓到鄰卡 */
     min-height: 180px;
   }
 
@@ -139,6 +139,11 @@
 
   .tool-card:hover {
     transform: translateY(-4px) scale(1.03);
+    border-color: var(--c);
+    box-shadow: 0 0 20px var(--cg), 0 0 40px var(--cg), inset 0 0 20px var(--cg);
+  }
+  .tool-card:focus-visible {
+    outline: none;
     border-color: var(--c);
     box-shadow: 0 0 20px var(--cg), 0 0 40px var(--cg), inset 0 0 20px var(--cg);
   }
@@ -169,8 +174,11 @@
     pointer-events: none;
   }
 
+  /* 特別寬的 kaomoji 縮小字級，避免超出 280px 卡片欄寬 */
+  .tool-emoji--long { font-size: 1.35rem; }
+
   .tool-name {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--c);
@@ -179,8 +187,8 @@
   }
 
   .tool-desc {
-    font-size: 0.68rem;
-    color: #888;
+    font-size: 0.78rem;
+    color: #999;
     text-align: center;
     line-height: 1.5;
     letter-spacing: 0.04em;
@@ -199,6 +207,7 @@
     .tool-grid { gap: 1rem; }
     .tool-card { padding: 1.4rem 0.8rem 1.2rem; min-height: 150px; }
     .tool-emoji { font-size: 2rem; }
+    .tool-emoji--long { font-size: 1.1rem; }
     .ambient--green  { width: 250px; height: 250px; }
     .ambient--magenta { width: 200px; height: 200px; }
     .ambient--cyan    { width: 180px; height: 180px; }
@@ -217,39 +226,39 @@
   <div class="ambient ambient--cyan"></div>
 
   <div class="hub">
-    <div class="hub-title">// JL2Os</div>
-    <div class="tool-grid">
+    <h1 class="hub-title">// JL2Os</h1>
+    <nav class="tool-grid" aria-label="工具清單">
       <a href="JLViewer.html" class="tool-card" data-accent="green">
-        <div class="tool-emoji">ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔก้้้้้้้้้้้ </div>
+        <div class="tool-emoji tool-emoji--long" aria-hidden="true">ก็็็็็็็็็็็็็ʕ•͡ᴥ•ʔก้้้้้้้้้้้ </div>
         <div class="tool-name">Viewer</div>
         <div class="tool-desc">影像檢視器，支援 RAW / YUV / JR2 等多種格式</div>
       </a>
       <a href="frame-compare.html" class="tool-card" data-accent="magenta">
-        <div class="tool-emoji">(╯°□°)╯︵┻━┻</div>
+        <div class="tool-emoji tool-emoji--long" aria-hidden="true">(╯°□°)╯︵┻━┻</div>
         <div class="tool-name">Frame Compare</div>
         <div class="tool-desc">影片逐幀比較，支援並排、滑動、差異模式</div>
       </a>
       <a href="ms_clock.html" class="tool-card" data-accent="cyan">
-        <div class="tool-emoji">(⏱ ͜ʖ⏱)</div>
+        <div class="tool-emoji" aria-hidden="true">(⏱ ͜ʖ⏱)</div>
         <div class="tool-name">Clock</div>
         <div class="tool-desc">毫秒精度時鐘，相機延遲測試用</div>
       </a>
       <a href="pattern-gen.html" class="tool-card" data-accent="green">
-        <div class="tool-emoji">◆▲●</div>
+        <div class="tool-emoji" aria-hidden="true">◆▲●</div>
         <div class="tool-name">Pattern Gen</div>
         <div class="tool-desc">Image Quality 測試圖產生器，ISP / Camera 調校用</div>
       </a>
       <a href="eis_generate.html" class="tool-card" data-accent="cyan">
-        <div class="tool-emoji">∿∿📷∿∿</div>
+        <div class="tool-emoji" aria-hidden="true">∿∿📷∿∿</div>
         <div class="tool-name">EIS Generate</div>
         <div class="tool-desc">合成晃動測試影片 + 對齊 gyro，EIS 防手震驗證用</div>
       </a>
       <a href="gcsv_imu_orient_analyzer.html" class="tool-card" data-accent="magenta">
-        <div class="tool-emoji">↺ x̌y̌ž ↻</div>
+        <div class="tool-emoji" aria-hidden="true">↺ x̌y̌ž ↻</div>
         <div class="tool-name">IMU Orient</div>
         <div class="tool-desc">gcsv 波形框選，算出 board.h 的 IMU_ORIENTATION 字串</div>
       </a>
-    </div>
+    </nav>
   </div>
 </body>
 </html>
