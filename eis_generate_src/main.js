@@ -30,7 +30,9 @@
     const { width, height } = state;
     previewCanvas.width = width;
     previewCanvas.height = height;
-    if (!sceneCanvas || sceneCanvas.width !== Math.round(width * APP.render.OVERSCAN)) {
+    if (!sceneCanvas ||
+        sceneCanvas.width !== Math.round(width * APP.render.OVERSCAN) ||
+        sceneCanvas.height !== Math.round(height * APP.render.OVERSCAN)) {
       sceneCanvas = createSceneCanvas(width, height);
     }
     warpGL.resize(width, height);
