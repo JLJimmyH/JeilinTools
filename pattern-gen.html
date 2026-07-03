@@ -479,8 +479,14 @@ const EXTRA_PARAMS = {
   ],
 };
 
+const savedParams = {}; // 切換 pattern 時保留各參數值，切回來不歸零
+
 function buildExtraParams() {
   const container = document.getElementById('extraParams');
+  // 重建前先保存目前值
+  container.querySelectorAll('input, select').forEach(el => {
+    if (el.type !== 'file' && el.id) savedParams[el.id] = el.value;
+  });
   container.innerHTML = '';
   const defs = EXTRA_PARAMS[currentType];
   if (!defs) return;
@@ -493,7 +499,8 @@ function buildExtraParams() {
     if (d.type === 'number') {
       const inp = document.createElement('input');
       inp.type = 'number'; inp.id = d.id;
-      inp.value = d.value; inp.min = d.min; inp.max = d.max;
+      inp.value = savedParams[d.id] !== undefined ? savedParams[d.id] : d.value;
+      inp.min = d.min; inp.max = d.max;
       grp.appendChild(inp);
     } else if (d.type === 'select') {
       const sel = document.createElement('select');
@@ -503,6 +510,7 @@ function buildExtraParams() {
         opt.value = o.value; opt.textContent = o.text;
         sel.appendChild(opt);
       });
+      if (savedParams[d.id] !== undefined) sel.value = savedParams[d.id];
       grp.appendChild(sel);
     } else if (d.type === 'file') {
       const inp = document.createElement('input');
