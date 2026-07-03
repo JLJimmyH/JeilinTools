@@ -1245,12 +1245,29 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
             rafId = requestAnimationFrame(tick);
         }
 
+        // Screen Wake Lock：時鐘運轉時防止螢幕變暗/休眠（長時間拍攝場景）
+        let wakeLock = null;
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+            } catch (e) { /* 低電量等因素被拒：靜默略過 */ }
+        }
+        function releaseWakeLock() {
+            if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        }
+        // 切頁時系統自動釋放 wake lock，回前景且仍在計時就重新取得
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && isRunning) requestWakeLock();
+        });
+
         function toggleClock() {
             if (isRunning) {
                 // 停止 — 凍結進度條在當前位置
                 isRunning = false;
                 cancelAnimationFrame(rafId);
                 rafId = null;
+                releaseWakeLock();
 
                 // 取得當前毫秒，算出進度條位置並凍結
                 const frozenMs = new Date().getMilliseconds();
@@ -1274,6 +1291,7 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
                 // 立刻渲染一幀，然後啟動 rAF
                 renderFrame(new Date());
                 rafId = requestAnimationFrame(tick);
+                requestWakeLock();
             }
         }
 
@@ -1331,6 +1349,7 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         // 初始化
         initQRCode();
         restoreTheme();
+        toggleClock(); // 開頁即計時：不存在「打開但不想讓時鐘跑」的場景，省一次點擊
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
