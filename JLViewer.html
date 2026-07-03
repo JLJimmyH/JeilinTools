@@ -2324,10 +2324,14 @@
           }
           pixelText.textContent = `X:${cx} Y:${cy} | Raw: ${rawVal}`;
           pixelSwatch.style.background = `rgb(${grayVal},${grayVal},${grayVal})`;
-        } else if (argbImageData && (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw')) {
+        } else if (argbImageData && (currentFormat === 'argb' || currentFormat === 'png' || currentFormat === 'yuv' || currentFormat === 'raw' || currentFormat === 'jyuv')) {
           const idx = (cy * argbWidth + cx) * 4;
           const r = argbImageData[idx], g = argbImageData[idx+1], b = argbImageData[idx+2], a = argbImageData[idx+3];
-          if (r === g && g === b) {
+          if (channelFamily === 'yuv' && channelPlaneY && channelPlaneU && channelPlaneV) {
+            // YUV dump 除錯首要看的是原始 Y/U/V byte 值，RGB 只是轉換結果
+            const pi = cy * argbWidth + cx;
+            pixelText.textContent = `X:${cx} Y:${cy} | Y:${channelPlaneY[pi]} U:${channelPlaneU[pi]} V:${channelPlaneV[pi]} | R:${r} G:${g} B:${b}`;
+          } else if (r === g && g === b) {
             pixelText.textContent = `X:${cx} Y:${cy} | Gray:${r} A:${a}`;
           } else {
             pixelText.textContent = `X:${cx} Y:${cy} | R:${r} G:${g} B:${b} A:${a}`;
