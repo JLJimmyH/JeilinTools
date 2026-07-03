@@ -905,6 +905,7 @@
     currentPngInfo = null;
     jr2HeaderReserved = null;
     currentChannel = 'all'; // 新檔載入重設通道隔離
+    isManuallyEdited = false; // 手動寬高只對當前檔案有效，避免污染新檔的解析度判斷
     const ext = file.name.toLowerCase();
 
     if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.bmp')) {
@@ -926,15 +927,17 @@
     const reader = new FileReader();
     reader.onload = (e) => {
       const buf = new Uint8Array(e.target.result);
+      const prevFormat = currentFormat;
+      let ok = true;
       if (ext.endsWith('.jr2')) {
         const mg = buf.length >= 4 ? String.fromCharCode(buf[0], buf[1], buf[2], buf[3]) : '';
         if (mg === 'JYUV') {
           currentFormat = 'jyuv';
           jyuvArrayBuffer = e.target.result;
-          parseJYUV(buf);
+          ok = parseJYUV(buf);
         } else {
           currentFormat = 'jr2';
-          parseJR2(buf);
+          ok = parseJR2(buf);
         }
       } else if (isYUVExtension(ext)) {
         currentFormat = 'yuv';
@@ -949,8 +952,11 @@
       } else {
         currentFormat = 'argb';
         argbArrayBuffer = e.target.result;
-        parseARGB(e.target.result, file.name);
+        ok = parseARGB(e.target.result, file.name);
       }
+      // 解析失敗：還原格式並保留原畫面，避免 rawData 為 null 時
+      // showCanvas 後 mousemove 持續拋例外
+      if (ok === false) { currentFormat = prevFormat; return; }
       showCanvas();
       updateUIForFormat();
       fitToWindow();
@@ -966,9 +972,9 @@
   // ── JR2 parsing (existing) ────────────────────────────────────
 
   function parseJR2(buf) {
-    if (buf.length < 32) { alert('檔案太小，不是有效的 JR2 檔案'); return; }
+    if (buf.length < 32) { alert('檔案太小，不是有效的 JR2 檔案'); return false; }
     const magic = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
-    if (magic !== 'JRAW') { alert('無效的 JR2 檔案 (magic: ' + magic + ')'); return; }
+    if (magic !== 'JRAW') { alert('無效的 JR2 檔案 (magic: ' + magic + ')'); return false; }
 
     modelStr = String.fromCharCode(...buf.slice(4, 12)).replace(/\0+$/, '');
     imgHeight = (buf[12] << 8) | buf[13];
@@ -978,12 +984,13 @@
     const expectedSize = 32 + imgWidth * imgHeight;
     if (buf.length < expectedSize) {
       alert(`檔案大小不符: 預期 ${expectedSize} bytes, 實際 ${buf.length} bytes`);
-      return;
+      return false;
     }
 
     rawData = buf.slice(32, 32 + imgWidth * imgHeight);
     infoEl.textContent = `${fileName} | ${modelStr} | ${imgWidth}×${imgHeight} | ${formatFileSize(buf.length)}`;
     render();
+    return true;
   }
 
   // ── JYUV parsing (.JR2 container, YUV422 packed variant) ──────
@@ -1045,9 +1052,9 @@
   }
 
   function parseJYUV(buf) {
-    if (buf.length < 32) { alert('檔案太小，不是有效的 JYUV 檔案'); return; }
+    if (buf.length < 32) { alert('檔案太小，不是有效的 JYUV 檔案'); return false; }
     const magic = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
-    if (magic !== 'JYUV') { alert('無效的 JYUV 檔案 (magic: ' + magic + ')'); return; }
+    if (magic !== 'JYUV') { alert('無效的 JYUV 檔案 (magic: ' + magic + ')'); return false; }
 
     jyuvModel = String.fromCharCode(...buf.slice(4, 12)).replace(/\0+$/, '');
     imgHeight = (buf[12] << 8) | buf[13];  // BIG-ENDIAN
@@ -1068,6 +1075,7 @@
     argbImageData = rgba; argbWidth = imgWidth; argbHeight = imgHeight;
     infoEl.textContent = `${fileName} | JYUV ${jyuvModel} | ${imgWidth}×${imgHeight} | ${formatFileSize(buf.length)}`;
     renderARGB();
+    return true;
   }
 
   // ── JR2 rendering ─────────────────────────────────────────────
@@ -1953,7 +1961,7 @@
 
     if (isJL) {
       const result = convJLFormatToRGBA8888(arrayBuffer, fnLower);
-      if (!result) return;
+      if (!result) return false;
       argbResult = result;
       argbImageData = result.imageData;
       argbWidth = result.width; argbHeight = result.height;
@@ -1985,7 +1993,7 @@
       }
 
       const result = convToRGBA8888(arrayBuffer, w, h, fnLower);
-      if (!result) { alert('不支援的檔案格式'); return; }
+      if (!result) { alert('不支援的檔案格式'); return false; }
       argbResult = result;
       argbResult.source = source;
       argbImageData = result.imageData;
@@ -1998,6 +2006,7 @@
     channelFamily = 'rgb';
     channelPlaneY = channelPlaneU = channelPlaneV = null;
     renderARGB();
+    return true;
   }
 
   // ── ARGB rendering ────────────────────────────────────────────
