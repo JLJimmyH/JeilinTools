@@ -1325,6 +1325,13 @@ async function startExport() {
 // ======================== Keyboard ========================
 document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return; // 別攔瀏覽器快捷鍵
+    // 拉完 frame slider 焦點停在 range 上，Space 仍應能播放/暫停
+    // （方向鍵不攔，range 原生行為恰好等效逐格）
+    if (e.target.type === 'range' && e.key === ' ') {
+        e.preventDefault();
+        if (vidA && vidB && !exporting) togglePlay();
+        return;
+    }
     if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (!vidA || !vidB || exporting) return;
     switch (e.key) {
