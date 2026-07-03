@@ -595,6 +595,11 @@ const ovWrap = $('ovWrap');
 const ovHandle = $('ovHandle');
 
 // ======================== Drop Zone ========================
+// 檔案拖偏落在 drop zone 外時，擋住瀏覽器預設的開檔導航，
+// 避免已載入的 A/B 與 trim 設定整頁蒸發
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
 function initDrop(zone, input, which) {
     zone.addEventListener('click', () => input.click());
     input.addEventListener('change', e => {

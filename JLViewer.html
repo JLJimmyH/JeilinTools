@@ -2345,6 +2345,11 @@
   //  DRAG & DROP
   // ══════════════════════════════════════════════════════════════
 
+  // 檔案拖到載入區以外（工具列/側欄）時，擋住瀏覽器預設的開檔導航，
+  // 避免已載入的工作狀態整頁蒸發
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+
   dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
   dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('dragover'); });
   dropzone.addEventListener('drop', (e) => {
