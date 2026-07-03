@@ -32,7 +32,9 @@ APP.exports.buildGcsv = (function () {
     lines.push("version,1.3");
     lines.push("id,eis-test-gen");
     lines.push("orientation,xyz");
-    lines.push("tscale,0.001");
+    // tscale = 取樣週期、t 欄輸出樣本索引：任意 gyroRate 都無量化誤差
+    // （固定 0.001 + ms 取整在非 1000 因數的取樣率會抖動或重複時間戳）
+    lines.push("tscale," + (1 / rate));
     lines.push("gscale,1.0");
     lines.push("ascale,1.0");
     lines.push("note,synthetic shake");
@@ -48,9 +50,8 @@ APP.exports.buildGcsv = (function () {
       // (gx, gy, gz) = (yaw, -pitch, -roll) = (ωy, -ωx, -ωz)
       const gx = w_body[1], gy = -w_body[0], gz = -w_body[2];
       const ax = a_body[1], ay = -a_body[0], az = a_body[2];
-      const tRaw = Math.round(t * 1000);
       lines.push(
-        tRaw + "," + fmt(gx) + "," + fmt(gy) + "," + fmt(gz) +
+        i + "," + fmt(gx) + "," + fmt(gy) + "," + fmt(gz) +
         "," + fmt(ax) + "," + fmt(ay) + "," + fmt(az)
       );
     }
