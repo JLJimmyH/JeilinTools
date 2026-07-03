@@ -1359,15 +1359,7 @@ function exportBMP() {
       view.setUint8(offset++, imgData[si + 1]); // G
       view.setUint8(offset++, imgData[si]);     // R
     }
-    // Pad to 4-byte boundary
-    while (offset % 4 !== 54 % 4 && (offset - 54) % rowBytes !== 0) {
-      if ((offset - 54) % 4 === 0 && ((offset - 54) / h) >= rowBytes) break;
-    }
-    const written = offset - 54 - y * rowBytes;
-    while (written < rowBytes && (offset - 54) < pixelDataSize) {
-      view.setUint8(offset++, 0);
-      if ((offset - 54 - y * rowBytes) >= rowBytes) break;
-    }
+    // Rows pad to 4-byte boundary; buffer is zero-initialized, just skip ahead
     offset = 54 + (y + 1) * rowBytes;
   }
 
