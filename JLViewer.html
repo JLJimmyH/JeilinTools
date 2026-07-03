@@ -900,6 +900,12 @@
 
   function handleFile(file) {
     if (!file) return;
+    // 解析失敗時用來還原的狀態快照，避免失敗檔污染全域狀態
+    const prev = {
+      format: currentFormat, fileName, fileSize: currentFileSize,
+      exif: currentExifData, png: currentPngInfo, jr2res: jr2HeaderReserved,
+      jyuvBuf: jyuvArrayBuffer, argbBuf: argbArrayBuffer,
+    };
     fileName = file.name;
     currentFileSize = file.size;
     currentExifData = null;
@@ -928,7 +934,6 @@
     const reader = new FileReader();
     reader.onload = (e) => {
       const buf = new Uint8Array(e.target.result);
-      const prevFormat = currentFormat;
       let ok = true;
       if (ext.endsWith('.jr2')) {
         const mg = buf.length >= 4 ? String.fromCharCode(buf[0], buf[1], buf[2], buf[3]) : '';
@@ -955,9 +960,14 @@
         argbArrayBuffer = e.target.result;
         ok = parseARGB(e.target.result, file.name);
       }
-      // 解析失敗：還原格式並保留原畫面，避免 rawData 為 null 時
-      // showCanvas 後 mousemove 持續拋例外
-      if (ok === false) { currentFormat = prevFormat; return; }
+      // 解析失敗：還原快照並保留原畫面，避免 rawData 為 null 時
+      // showCanvas 後 mousemove 持續拋例外、或後續操作用到失敗檔的 buffer
+      if (ok === false) {
+        currentFormat = prev.format; fileName = prev.fileName; currentFileSize = prev.fileSize;
+        currentExifData = prev.exif; currentPngInfo = prev.png; jr2HeaderReserved = prev.jr2res;
+        jyuvArrayBuffer = prev.jyuvBuf; argbArrayBuffer = prev.argbBuf;
+        return;
+      }
       showCanvas();
       updateUIForFormat();
       fitToWindow();
@@ -977,18 +987,22 @@
     const magic = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
     if (magic !== 'JRAW') { alert('無效的 JR2 檔案 (magic: ' + magic + ')'); return false; }
 
-    modelStr = String.fromCharCode(...buf.slice(4, 12)).replace(/\0+$/, '');
-    imgHeight = (buf[12] << 8) | buf[13];
-    imgWidth = (buf[14] << 8) | buf[15];
-    jr2HeaderReserved = Array.from(buf.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    // 先讀進區域變數，尺寸驗證通過才寫入全域，失敗不污染舊檔狀態
+    const model = String.fromCharCode(...buf.slice(4, 12)).replace(/\0+$/, '');
+    const h = (buf[12] << 8) | buf[13];
+    const w = (buf[14] << 8) | buf[15];
 
-    const expectedSize = 32 + imgWidth * imgHeight;
+    const expectedSize = 32 + w * h;
     if (buf.length < expectedSize) {
       alert(`檔案大小不符: 預期 ${expectedSize} bytes, 實際 ${buf.length} bytes`);
       return false;
     }
 
-    rawData = buf.slice(32, 32 + imgWidth * imgHeight);
+    modelStr = model;
+    imgHeight = h;
+    imgWidth = w;
+    jr2HeaderReserved = Array.from(buf.slice(16, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    rawData = buf.slice(32, 32 + w * h);
     infoEl.textContent = `${fileName} | ${modelStr} | ${imgWidth}×${imgHeight} | ${formatFileSize(buf.length)}`;
     render();
     return true;
