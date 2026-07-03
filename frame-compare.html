@@ -621,11 +621,14 @@ function loadFile(file, which) {
     const info = which === 'A' ? $('infoA') : $('infoB');
     const zone = which === 'A' ? $('dropA') : $('dropB');
 
-    // 同一側尚未載完又丟新檔：中止前一個，避免 ObjectURL 洩漏
+    // 同一側尚未載完又丟新檔：真正中止前一個（load() 重跑 load algorithm），
+    // 避免 ObjectURL 洩漏與 stale event
     if (pendingLoads[which]) {
-        URL.revokeObjectURL(pendingLoads[which].src);
-        pendingLoads[which].removeAttribute('src');
-        pendingLoads[which] = null;
+        const old = pendingLoads[which];
+        pendingLoads[which] = null; // 先清，讓舊 handler 的 stale 檢查生效
+        URL.revokeObjectURL(old.src);
+        old.removeAttribute('src');
+        old.load();
     }
 
     const video = document.createElement('video');
@@ -637,6 +640,7 @@ function loadFile(file, which) {
     info.textContent = `載入中… ${file.name}`;
 
     video.addEventListener('loadeddata', () => {
+        if (pendingLoads[which] !== video) return; // 已被更新的載入取代
         pendingLoads[which] = null;
         info.innerHTML = `<b>${file.name}</b> &mdash; ${video.videoWidth}&times;${video.videoHeight}, ${video.duration.toFixed(2)}s`;
         zone.classList.add('loaded');
@@ -651,11 +655,18 @@ function loadFile(file, which) {
     });
 
     video.addEventListener('error', () => {
+        if (pendingLoads[which] !== video) return; // 已被更新的載入取代
         pendingLoads[which] = null;
         URL.revokeObjectURL(video.src);
         const code = video.error ? video.error.code : '?';
-        info.textContent = `載入失敗（error ${code}）：${file.name} — 檔案損壞或瀏覽器不支援此 codec`;
-        zone.classList.remove('loaded');
+        // 該側已有可用影片時比較功能仍在用它，別把 loaded 狀態清掉
+        const existing = which === 'A' ? vidA : vidB;
+        if (existing) {
+            info.textContent = `載入失敗（error ${code}）：${file.name}，仍使用原影片`;
+        } else {
+            info.textContent = `載入失敗（error ${code}）：${file.name} — 檔案損壞或瀏覽器不支援此 codec`;
+            zone.classList.remove('loaded');
+        }
     });
 }
 
