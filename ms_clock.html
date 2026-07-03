@@ -1191,6 +1191,7 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         }
 
         function updateQRCode(text) {
+            if (!qrCode) return; // lib 缺失：保留 fallback 訊息，不用時間戳蓋掉
             if (text === lastQrText) return;
             lastQrText = text;
             if (qrCode) {
@@ -1251,6 +1252,8 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
             if (!('wakeLock' in navigator)) return;
             try {
                 wakeLock = await navigator.wakeLock.request('screen');
+                // await 期間時鐘可能已被停止，別留下孤兒 lock
+                if (!isRunning && wakeLock) { wakeLock.release(); wakeLock = null; }
             } catch (e) { /* 低電量等因素被拒：靜默略過 */ }
         }
         function releaseWakeLock() {
