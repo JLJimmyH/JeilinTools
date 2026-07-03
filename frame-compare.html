@@ -609,15 +609,29 @@ function initDrop(zone, input, which) {
     });
 }
 
+const pendingLoads = { A: null, B: null };
+
 function loadFile(file, which) {
+    const info = which === 'A' ? $('infoA') : $('infoB');
+    const zone = which === 'A' ? $('dropA') : $('dropB');
+
+    // 同一側尚未載完又丟新檔：中止前一個，避免 ObjectURL 洩漏
+    if (pendingLoads[which]) {
+        URL.revokeObjectURL(pendingLoads[which].src);
+        pendingLoads[which].removeAttribute('src');
+        pendingLoads[which] = null;
+    }
+
     const video = document.createElement('video');
     video.muted = true;
     video.preload = 'auto';
     video.playsInline = true;
     video.src = URL.createObjectURL(file);
+    pendingLoads[which] = video;
+    info.textContent = `載入中… ${file.name}`;
+
     video.addEventListener('loadeddata', () => {
-        const info = which === 'A' ? $('infoA') : $('infoB');
-        const zone = which === 'A' ? $('dropA') : $('dropB');
+        pendingLoads[which] = null;
         info.innerHTML = `<b>${file.name}</b> &mdash; ${video.videoWidth}&times;${video.videoHeight}, ${video.duration.toFixed(2)}s`;
         zone.classList.add('loaded');
         if (which === 'A') {
@@ -628,6 +642,14 @@ function loadFile(file, which) {
             vidB = video;
         }
         if (vidA && vidB) onReady();
+    });
+
+    video.addEventListener('error', () => {
+        pendingLoads[which] = null;
+        URL.revokeObjectURL(video.src);
+        const code = video.error ? video.error.code : '?';
+        info.textContent = `載入失敗（error ${code}）：${file.name} — 檔案損壞或瀏覽器不支援此 codec`;
+        zone.classList.remove('loaded');
     });
 }
 
