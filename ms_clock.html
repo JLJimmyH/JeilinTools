@@ -7,7 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             /* Colors */
@@ -1144,6 +1143,8 @@
     </div>
   </div>
 
+    <!-- body 尾端載入：離線/CDN 被擋時不阻塞首屏，失敗由 initQRCode 優雅降級 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         let rafId = null;
         let isRunning = false;
@@ -1165,14 +1166,25 @@
         let lastQrText = '';
 
         function initQRCode() {
-            qrCode = new QRCode(qrEl, {
-                text: 'STANDBY',
-                width: qrSize,
-                height: qrSize,
-                colorDark: '#00d4ff',
-                colorLight: '#12121a',
-                correctLevel: QRCode.CorrectLevel.L
-            });
+            // 離線或 CDN 被擋時 QRCode 未定義：隱藏 QR 區塊、其餘功能照常
+            if (typeof QRCode === 'undefined') {
+                qrEl.parentElement.style.display = 'none';
+                qrDataEl.textContent = 'QR LIB OFFLINE';
+                return;
+            }
+            try {
+                qrCode = new QRCode(qrEl, {
+                    text: 'STANDBY',
+                    width: qrSize,
+                    height: qrSize,
+                    colorDark: '#00d4ff',
+                    colorLight: '#12121a',
+                    correctLevel: QRCode.CorrectLevel.L
+                });
+            } catch (err) {
+                qrEl.parentElement.style.display = 'none';
+                qrDataEl.textContent = 'QR INIT FAILED';
+            }
         }
 
         function updateQRCode(text) {
