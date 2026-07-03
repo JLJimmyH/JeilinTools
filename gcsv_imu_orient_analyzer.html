@@ -478,6 +478,8 @@ cv.addEventListener('mousemove',e=>{
 window.addEventListener('mouseup',()=>{ dragging=false; });
 
 //---------------------------------------------------------------- 載入
+// 檔名與 header 是不受控輸入，插入 innerHTML 前必須跳脫
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function loadText(text, fname){
   try{
     DATA=parseGcsv(text);
@@ -486,12 +488,12 @@ function loadText(text, fname){
     const h=DATA.header;
     const dur = DATA.n>1 ? ((DATA.t[DATA.n-1]-DATA.t[0]) * parseFloat(h['tscale']||'0.000001')) : 0;
     document.getElementById('fileinfo').innerHTML=`
-      <b>檔名</b><span class="mono">${fname||'(demo)'}</span>
-      <b>chip</b><span>${DATA.chip} <span class="mut">(id=${h['id']||'?'})</span></span>
-      <b>header orientation</b><span class="mono acc">${h['orientation']||'(無)'}</span>
-      <b>version</b><span class="mono">${h['version']||'?'}</span>
-      <b>gscale</b><span class="mono">${h['gscale']||'?'}</span>
-      <b>tscale</b><span class="mono">${h['tscale']||'?'}</span>
+      <b>檔名</b><span class="mono">${esc(fname||'(demo)')}</span>
+      <b>chip</b><span>${esc(DATA.chip)} <span class="mut">(id=${esc(h['id']||'?')})</span></span>
+      <b>header orientation</b><span class="mono acc">${esc(h['orientation']||'(無)')}</span>
+      <b>version</b><span class="mono">${esc(h['version']||'?')}</span>
+      <b>gscale</b><span class="mono">${esc(h['gscale']||'?')}</span>
+      <b>tscale</b><span class="mono">${esc(h['tscale']||'?')}</span>
       <b>樣本數</b><span>${DATA.n}　<span class="mut">時長 ~${dur.toFixed(2)}s</span></span>`;
     resizeCanvas(); recompute();
     // #main 由 display:none 切出後，layout 可能要下一幀才穩；再量一次重繪保險。
